@@ -103,7 +103,7 @@ ig_auth <- function(identifier, password, api_key, demo = TRUE) {
   # Fallback: convert lists to tibble when possible
   if (is.list(json)) {
     # try to identify a table-like element
-    table_elt <- json[["prices"]] %||% json[["markets"]] %||% json[["accounts"]] %||% NULL
+    table_elt <- json[["prices"]] %||% json[["markets"]] %||% json[["accounts"]] %||% json[["positions"]] %||% NULL
     if (!is.null(table_elt) && is.data.frame(table_elt)) {
       return(tibble::as_tibble(table_elt))
     }
@@ -204,9 +204,85 @@ ig_get_accounts <- function(auth, api_key = NULL, mock_response = NULL) {
   tibble::as_tibble(res)
 }
 
+#' Get options / derivative positions
+#'
+#' Retrieve positions filtered for options/derivatives. Returns a tibble with position details.
+#'
+#' @param auth Authentication list from ig_auth()
+#' @param api_key API key (optional)
+#' @param mock_response Optional mock response (for tests); data.frame or list convertible to tibble
+#' @return tibble with options position details (dealId, size, direction, instrument, etc.)
+#' @examples
+#' \dontrun{
+#' auth <- ig_auth("user", "pass", "api_key")
+#' options <- ig_get_options(auth)
+#' }
+#' @export
+ig_get_options <- function(auth, api_key = NULL, mock_response = NULL) {
+  # Using the /positions endpoint; filter may be applied client-side for options
+  path <- "/positions"
+  res <- .ig_request(path, auth = auth, api_key = api_key, method = "GET", mock_response = mock_response)
+  df <- tibble::as_tibble(res)
+  # Try to filter for option-like instruments if a column exists (best-effort)
+  if ("instrumentType" %in% names(df)) {
+    opts <- df[df$instrumentType %in% c("OPTION", "DERIVATIVE", "OPTION_CONTRACT"), , drop = FALSE]
+    return(tibble::as_tibble(opts))
+  }
+  # If no instrumentType column, return the full positions tibble (caller can filter)
+  tibble::as_tibble(df)
+}
+
+#' Execute a trade (place OTC position)
+#'
+#' Place a market trade (BUY/SELL) for an epic. For tests use `mock_response`.
+#'
+#' @param epic Market epic (character)
+#' @param direction "BUY" or "SELL" (character)
+#' @param size Numeric size (units)
+#' @param auth Authentication list from ig_auth()
+#' @param api_key API key (optional)
+#' @param limit Optional numeric limit price
+#' @param stop Optional numeric stop price
+#' @param mock_response Optional mock response (data.frame or list) to avoid network in tests
+#' @return tibble with trade confirmation (dealId, status, dealReference, etc.)
+#' @examples
+#' \dontrun{
+#' auth <- ig_auth("user", "pass", "api_key")
+#' res <- ig_execute_trade("CS.D.EURUSD.CFD.IP", "BUY", 1.0, auth)
+#' }
+#' @export
+ig_execute_trade <- function(epic, direction, size, auth, api_key = NULL, limit = NULL, stop = NULL, mock_response = NULL) {
+  stopifnot(is.character(epic), is.character(direction), is.numeric(size))
+  if (!direction %in% c("BUY", "SELL")) stop("`direction` must be 'BUY' or 'SELL'")
+
+  # Allow tests to bypass network
+  if (!is.null(mock_response)) {
+    return(tibble::as_tibble(mock_response))
+  }
+  if (identical(Sys.getenv("IGFETCHR_TESTING"), "true")) {
+    stop("Network calls disabled during tests. Provide `mock_response` to simulate a trade.")
+  }
+
+  if (is.null(auth) || !is.list(auth) || is.null(auth$base_url)) {
+    stop("`auth` must be a list returned from ig_auth() with a base_url element.")
+  }
+
+  url_path <- "/positions/otc"
+  body <- list(
+    epic = epic,
+    direction = direction,
+    size = size
+  )
+  if (!is.null(limit)) body$limit <- limit
+  if (!is.null(stop)) body$stop <- stop
+
+  res <- .ig_request(url_path, auth = auth, api_key = api_key, method = "POST", body = body)
+  tibble::as_tibble(res)
+}
+
 #' Close session / logout
 #'
-#' Close the authenticated session.
+#' Close the authenticated session. Alias: ig_close_session is provided for clarity.
 #'
 #' @param auth Authentication list from ig_auth()
 #' @param api_key API key (optional)
@@ -214,7 +290,7 @@ ig_get_accounts <- function(auth, api_key = NULL, mock_response = NULL) {
 #' @examples
 #' \dontrun{
 #' auth <- ig_auth("user", "pass", "api_key")
-#' ig_logout(auth)
+#' ig_close_session(auth)
 #' }
 #' @export
 ig_logout <- function(auth, api_key = NULL) {
@@ -237,6 +313,18 @@ ig_logout <- function(auth, api_key = NULL) {
     stop("Logout failed (status ", status, "): ", msg)
   }
   invisible(TRUE)
+}
+
+#' Close session / logout (alias)
+#'
+#' Convenience wrapper for ig_logout()
+#'
+#' @param auth Authentication list from ig_auth()
+#' @param api_key API key (optional)
+#' @return Logical TRUE if the session was closed successfully.
+#' @export
+ig_close_session <- function(auth, api_key = NULL) {
+  ig_logout(auth = auth, api_key = api_key)
 }
 
 #' Null-coalescing operator for internal use
