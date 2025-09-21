@@ -22,6 +22,6 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Saw Simeon \email{saw@example.com}
+\strong{Maintainer}: Saw Simeon \email{saw.simeon.brown@gmail.com}
 
 }
