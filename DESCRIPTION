@@ -2,8 +2,8 @@ Package: igfetchr
 Type: Package
 Title: Simplified Access to IG Trading API
 Version: 0.1.0
-Authors@R: person("Saw", "Simeon", email = "saw@example.com", role = c("aut", "cre"))
-Description: Provides functions to fetch market data, historical prices, and account details from the IG Trading REST API (labs.ig.com). Returns tidy tibbles for easy analysis. Trading CFDs and spread bets carry a high risk of losing money; this package is for data access and is not financial advice.
+Authors@R: person("Saw", "Simeon", email = "saw.simeon.brown@gmail.com", role = c("aut", "cre"))
+Description: Provides functions to fetch market data, historical prices, execute trades, and account details from the IG Trading REST API (labs.ig.com). Returns tidy tibbles for easy analysis. Trading CFDs and spread bets carry a high risk of losing money; this package is for data access and is not financial advice.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
