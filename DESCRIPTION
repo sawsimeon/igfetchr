@@ -1,0 +1,23 @@
+Package: igfetchr
+Type: Package
+Title: Simplified Access to IG Trading API
+Version: 0.1.0
+Authors@R: person("Saw", "Simeon", email = "saw@example.com", role = c("aut", "cre"))
+Description: Provides functions to fetch market data, historical prices, and account details from the IG Trading REST API (labs.ig.com). Returns tidy tibbles for easy analysis. Trading CFDs and spread bets carry a high risk of losing money; this package is for data access and is not financial advice.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports:
+    httr,
+    jsonlite,
+    tibble
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown,
+    lubridate,
+    httptest
+VignetteBuilder: knitr
+URL: https://github.com/sawsimeon/igfetchr
+BugReports: https://github.com/sawsimeon/igfetchr/issues
+RoxygenNote: 7.3.3

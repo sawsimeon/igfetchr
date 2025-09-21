@@ -1,0 +1,101 @@
+---
+title: "Getting started with igfetchr"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting started with igfetchr}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+# Introduction
+
+igfetchr is a small, beginner-friendly wrapper around the IG Trading REST API (labs.ig.com). It provides functions to authenticate and fetch market search results, current prices, historical prices, and account summaries — returning tidy tibbles.
+
+**Disclaimer:** Trading CFDs and spread bets carry a high risk of losing money. This vignette demonstrates data access only; igfetchr is not financial advice.
+
+# Offline / testing mode
+
+To make examples and tests deterministic and CRAN-friendly, igfetchr supports an offline testing mode. Set the environment variable `IGFETCHR_TESTING = "true"` and the package will return mock tokens and accept `mock_response` data frames for endpoints.
+
+```{r testing-mode}
+Sys.setenv(IGFETCHR_TESTING = "true")
+library(igfetchr)
+```
+
+# Authenticate (mock)
+
+This example uses the package's testing mode and returns a mock auth list instantly.
+
+```{r auth}
+auth <- ig_auth("demo_user", "demo_pass", "demo_api_key", demo = TRUE)
+auth
+```
+
+# Search markets (mock)
+
+Use `ig_search_markets()` with `mock_response` to simulate the API returning market results.
+
+```{r search}
+mock_markets <- data.frame(
+  epic = c("TEST.EURUSD", "TEST.GBPUSD"),
+  instrumentName = c("EUR/USD", "GBP/USD"),
+  stringsAsFactors = FALSE
+)
+
+markets <- ig_search_markets("EUR/USD", auth = auth, mock_response = mock_markets)
+markets
+```
+
+# Current price (mock)
+
+Simulate a current price response.
+
+```{r price}
+mock_price <- data.frame(bid = 1.1234, offer = 1.1238, timestamp = Sys.time(), stringsAsFactors = FALSE)
+price <- ig_get_price("TEST.EURUSD", auth = auth, mock_response = mock_price)
+price
+```
+
+# Historical prices (mock)
+
+Simulate historical OHLC data.
+
+```{r historical}
+mock_hist <- data.frame(
+  snapshotTime = as.character(Sys.Date() - 2:0),
+  open = c(1.12, 1.13, 1.11),
+  high = c(1.14, 1.15, 1.12),
+  low = c(1.11, 1.12, 1.09),
+  close = c(1.13, 1.11, 1.10),
+  stringsAsFactors = FALSE
+)
+
+hist <- ig_get_historical("TEST.EURUSD", from = Sys.Date() - 2, to = Sys.Date(), resolution = "D", auth = auth, mock_response = mock_hist)
+hist
+```
+
+# Accounts (mock)
+
+Simulate account summary retrieval.
+
+```{r accounts}
+mock_accounts <- data.frame(accountId = "ACCT123", balance = 10000, preferred = TRUE, stringsAsFactors = FALSE)
+accounts <- ig_get_accounts(auth = auth, mock_response = mock_accounts)
+accounts
+```
+
+# Logout (mock)
+
+```{r logout}
+ig_logout(auth)
+Sys.unsetenv("IGFETCHR_TESTING")
+```
+
+# Notes
+
+- The vignette uses the built-in testing mode so it runs quickly and without network, satisfying CRAN checks.
+- Real API usage requires a free API key from https://labs.ig.com and valid credentials. Replace the mock usage above with real calls and remove the testing environment variable when running live.
