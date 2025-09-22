@@ -2,30 +2,61 @@
 % Please edit documentation in R/igfetchr.R
 \name{ig_auth}
 \alias{ig_auth}
-\title{Authenticate with IG Trading API}
+\title{Authenticate with the IG API}
 \usage{
-ig_auth(username, password, api_key, acc_type = "DEMO", acc_number = NULL)
+ig_auth(
+  username = Sys.getenv("IG_SERVICE_USERNAME"),
+  password = Sys.getenv("IG_SERVICE_PASSWORD"),
+  api_key = Sys.getenv("IG_SERVICE_API_KEY"),
+  acc_type = Sys.getenv("IG_SERVICE_ACC_TYPE", "DEMO"),
+  acc_number = Sys.getenv("IG_SERVICE_ACC_NUMBER")
+)
 }
 \arguments{
-\item{username}{IG account username (character)}
+\item{username}{Character. IG account username. Defaults to `IG_SERVICE_USERNAME` environment variable.}
 
-\item{password}{IG account password (character)}
+\item{password}{Character. IG account password. Defaults to `IG_SERVICE_PASSWORD` environment variable.}
 
-\item{api_key}{API key from https://labs.ig.com (character)}
+\item{api_key}{Character. IG API key. Defaults to `IG_SERVICE_API_KEY` environment variable.}
 
-\item{acc_type}{Account type: "DEMO" or "LIVE" (character, default "DEMO")}
+\item{acc_type}{Character. Account type, either "DEMO" or "LIVE". Defaults to `IG_SERVICE_ACC_TYPE` or "DEMO".}
 
-\item{acc_number}{Optional account number (character)}
+\item{acc_number}{Character. Optional account number. Defaults to `IG_SERVICE_ACC_NUMBER` or NULL.}
 }
 \value{
-A named list with elements: cst, security, base_url, acc_type, and acc_number. Use this list as the `auth` argument
-  in other functions.
+A list containing:
+\itemize{
+  \item \code{cst}: Client session token.
+  \item \code{security}: Security token (X-SECURITY-TOKEN).
+  \item \code{base_url}: Base URL for API requests (DEMO or LIVE).
+  \item \code{api_key}: API key used for authentication.
+  \item \code{acc_type}: Account type ("DEMO" or "LIVE").
+  \item \code{acc_number}: Account number (or NULL if not provided).
+}
 }
 \description{
-Authenticate to the IG Trading REST API and return required tokens for subsequent calls.
+Authenticates with the IG API to obtain session tokens (CST and X-SECURITY-TOKEN)
+for subsequent API requests. Supports environment variables for credentials and
+optional account type and number.
 }
 \examples{
 \dontrun{
-auth <- ig_auth("your_username", "your_password", "your_api_key", acc_type = "DEMO", acc_number = "ABC123")
+# Using environment variables
+Sys.setenv(IG_SERVICE_USERNAME = "your_username")
+Sys.setenv(IG_SERVICE_PASSWORD = "your_password")
+Sys.setenv(IG_SERVICE_API_KEY = "your_api_key")
+Sys.setenv(IG_SERVICE_ACC_NUMBER = "Z5AMR1")
+Sys.setenv(IG_SERVICE_ACC_TYPE = "DEMO")
+auth <- ig_auth()
+
+# Using explicit arguments
+auth <- ig_auth(
+  username = "your_username",
+  password = "your_password",
+  api_key = "your_api_key",
+  acc_type = "DEMO",
+  acc_number = "Z5AMR1"
+)
 }
+
 }

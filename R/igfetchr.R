@@ -7,21 +7,48 @@
 #' @keywords internal
 "_PACKAGE"
 
-#' Authenticate with IG Trading API
+#' Authenticate with the IG API
 #'
-#' Authenticate to the IG Trading REST API and return required tokens for subsequent calls.
+#' Authenticates with the IG API to obtain session tokens (CST and X-SECURITY-TOKEN)
+#' for subsequent API requests. Supports environment variables for credentials and
+#' optional account type and number.
 #'
-#' @param username IG account username (character)
-#' @param password IG account password (character)
-#' @param api_key API key from https://labs.ig.com (character)
-#' @param acc_type Account type: "DEMO" or "LIVE" (character, default "DEMO")
-#' @param acc_number Optional account number (character)
-#' @return A named list with elements: cst, security, and base_url. Use this list as the `auth` argument
-#'   in other functions.
+#' @param username Character. IG account username. Defaults to `IG_SERVICE_USERNAME` environment variable.
+#' @param password Character. IG account password. Defaults to `IG_SERVICE_PASSWORD` environment variable.
+#' @param api_key Character. IG API key. Defaults to `IG_SERVICE_API_KEY` environment variable.
+#' @param acc_type Character. Account type, either "DEMO" or "LIVE". Defaults to `IG_SERVICE_ACC_TYPE` or "DEMO".
+#' @param acc_number Character. Optional account number. Defaults to `IG_SERVICE_ACC_NUMBER` or NULL.
+#'
+#' @return A list containing:
+#' \itemize{
+#'   \item \code{cst}: Client session token.
+#'   \item \code{security}: Security token (X-SECURITY-TOKEN).
+#'   \item \code{base_url}: Base URL for API requests (DEMO or LIVE).
+#'   \item \code{api_key}: API key used for authentication.
+#'   \item \code{acc_type}: Account type ("DEMO" or "LIVE").
+#'   \item \code{acc_number}: Account number (or NULL if not provided).
+#' }
+#'
 #' @examples
 #' \dontrun{
-#' auth <- ig_auth("your_username", "your_password", "your_api_key", acc_type = "DEMO", acc_number = "ABC123")
+#' # Using environment variables
+#' Sys.setenv(IG_SERVICE_USERNAME = "your_username")
+#' Sys.setenv(IG_SERVICE_PASSWORD = "your_password")
+#' Sys.setenv(IG_SERVICE_API_KEY = "your_api_key")
+#' Sys.setenv(IG_SERVICE_ACC_NUMBER = "Z5AMR1")
+#' Sys.setenv(IG_SERVICE_ACC_TYPE = "DEMO")
+#' auth <- ig_auth()
+#'
+#' # Using explicit arguments
+#' auth <- ig_auth(
+#'   username = "your_username",
+#'   password = "your_password",
+#'   api_key = "your_api_key",
+#'   acc_type = "DEMO",
+#'   acc_number = "Z5AMR1"
+#' )
 #' }
+#'
 #' @export
 ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
                     password = Sys.getenv("IG_SERVICE_PASSWORD"),
@@ -82,7 +109,23 @@ ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
   )
 }
 
-# Internal helper for requests
+#' Internal function to make IG API requests
+#'
+#' Makes HTTP requests to the IG API using authentication details from `ig_auth()`.
+#' Handles GET, POST, and DELETE methods and processes JSON responses into tibbles.
+#' Not intended for direct use; called by higher-level functions like `ig_get_accounts()`.
+#'
+#' @param path Character. API endpoint path (e.g., "/accounts").
+#' @param auth List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.
+#' @param method Character. HTTP method ("GET", "POST", or "DELETE"). Defaults to "GET".
+#' @param query List. Optional query parameters for GET requests.
+#' @param body List. Optional request body for POST requests.
+#' @param mock_response List or data frame. Optional mock response for testing.
+#'
+#' @return A tibble containing the API response data, or a tibble with a single column
+#' containing the raw JSON response if the response cannot be converted to a data frame.
+#'
+#' @keywords internal
 .ig_request <- function(path, auth, method = c("GET", "POST", "DELETE"), query = list(), body = NULL, mock_response = NULL) {
   method <- match.arg(method)
   if (!is.null(mock_response)) {
@@ -224,19 +267,39 @@ ig_get_historical <- function(epic, from = NULL, to = NULL, resolution = "D", au
   tibble::as_tibble(res)
 }
 
-#' Get accounts and positions
+#' Retrieve IG account details
 #'
-#' Retrieve account summaries and open positions for the authenticated user.
+#' Fetches details of IG accounts associated with the authenticated session.
+#' Returns a tibble containing account information such as account ID, name, balance, and status.
 #'
-#' @param auth Authentication list from ig_auth()
-#' @param api_key API key (optional)
-#' @param mock_response Optional mock response (for tests)
-#' @return tibble or list depending on endpoint structure
+#' @param auth List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.
+#' @param mock_response List or data frame. Optional mock response for testing, bypassing the API call.
+#'
+#' @return A tibble with columns including `accountId`, `accountName`, `balance`, `currency`, and others as returned by the IG API `/accounts` endpoint.
+#'
 #' @examples
 #' \dontrun{
-#' auth <- ig_auth(username = "your_username", password = "your_password", api_key = "your_api_key", acc_type = "DEMO", acc_number = "ABC123")
+#' # Authenticate and get accounts
+#' auth <- ig_auth(
+#'   username = "your_username",
+#'   password = "your_password",
+#'   api_key = "your_api_key",
+#'   acc_type = "DEMO",
+#'   acc_number = "ABC123"
+#' )
 #' accounts <- ig_get_accounts(auth)
+#' print(accounts)
+#'
+#' # Using mock response for testing
+#' mock_response <- data.frame(
+#'   accountId = "ABC123",
+#'   accountName = "Demo Account",
+#'   balance.balance = 10000,
+#'   currency = "SEK"
+#' )
+#' accounts <- ig_get_accounts(auth, mock_response = mock_response)
 #' }
+#'
 #' @export
 ig_get_accounts <- function(auth, mock_response = NULL) {
   path <- "/accounts"

@@ -2,26 +2,43 @@
 % Please edit documentation in R/igfetchr.R
 \name{ig_get_accounts}
 \alias{ig_get_accounts}
-\title{Get accounts and positions}
+\title{Retrieve IG account details}
 \usage{
-ig_get_accounts(auth, api_key = NULL, mock_response = NULL)
+ig_get_accounts(auth, mock_response = NULL)
 }
 \arguments{
-\item{auth}{Authentication list from ig_auth()}
+\item{auth}{List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.}
 
-\item{api_key}{API key (optional)}
-
-\item{mock_response}{Optional mock response (for tests)}
+\item{mock_response}{List or data frame. Optional mock response for testing, bypassing the API call.}
 }
 \value{
-tibble or list depending on endpoint structure
+A tibble with columns including `accountId`, `accountName`, `balance`, `currency`, and others as returned by the IG API `/accounts` endpoint.
 }
 \description{
-Retrieve account summaries and open positions for the authenticated user.
+Fetches details of IG accounts associated with the authenticated session.
+Returns a tibble containing account information such as account ID, name, balance, and status.
 }
 \examples{
 \dontrun{
-auth <- ig_auth("user", "pass", "api_key")
+# Authenticate and get accounts
+auth <- ig_auth(
+  username = "your_username",
+  password = "your_password",
+  api_key = "your_api_key",
+  acc_type = "DEMO",
+  acc_number = "ABC123"
+)
 accounts <- ig_get_accounts(auth)
+print(accounts)
+
+# Using mock response for testing
+mock_response <- data.frame(
+  accountId = "ABC123",
+  accountName = "Demo Account",
+  balance.balance = 10000,
+  currency = "SEK"
+)
+accounts <- ig_get_accounts(auth, mock_response = mock_response)
 }
+
 }
