@@ -23,7 +23,18 @@
 #' auth <- ig_auth("your_username", "your_password", "your_api_key", acc_type = "DEMO", acc_number = "ABC123")
 #' }
 #' @export
-ig_auth <- function(username, password, api_key, acc_type = "DEMO", acc_number = NULL) {
+ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
+                    password = Sys.getenv("IG_SERVICE_PASSWORD"),
+                    api_key = Sys.getenv("IG_SERVICE_API_KEY"),
+                    acc_type = Sys.getenv("IG_SERVICE_ACC_TYPE", "DEMO"),
+                    acc_number = Sys.getenv("IG_SERVICE_ACC_NUMBER")) {
+  # Use environment variables if set and non-empty, otherwise use provided arguments
+  username <- if (nchar(username) > 0) username else stop("`username` must be provided via IG_SERVICE_USERNAME or function argument.")
+  password <- if (nchar(password) > 0) password else stop("`password` must be provided via IG_SERVICE_PASSWORD or function argument.")
+  api_key <- if (nchar(api_key) > 0) api_key else stop("`api_key` must be provided via IG_SERVICE_API_KEY or function argument.")
+  acc_type <- if (nchar(acc_type) > 0) acc_type else "DEMO"  # Default to DEMO if not set
+  acc_number <- if (nchar(acc_number) > 0) acc_number else NULL  # acc_number is optional
+
   stopifnot(is.character(username), is.character(password), is.character(api_key))
   if (!is.character(acc_type) || length(acc_type) != 1) stop("`acc_type` must be a single character, e.g. 'DEMO' or 'LIVE'")
   acc_type_upper <- toupper(acc_type)
@@ -31,7 +42,7 @@ ig_auth <- function(username, password, api_key, acc_type = "DEMO", acc_number =
 
   # Support offline/mock mode for tests
   if (identical(Sys.getenv("IGFETCHR_TESTING"), "true")) {
-    return(list(cst = "mock_cst", security = "mock_security", base_url = base_url))
+    return(list(cst = "mock_cst", security = "mock_security", base_url = base_url, api_key = api_key, acc_type = acc_type_upper, acc_number = acc_number))
   }
 
   body_list <- list(identifier = username, password = password)
@@ -61,14 +72,20 @@ ig_auth <- function(username, password, api_key, acc_type = "DEMO", acc_number =
     stop("Authentication did not return required headers (CST / X-SECURITY-TOKEN).")
   }
 
-  list(cst = cst, security = security, base_url = base_url, acc_type = acc_type_upper, acc_number = acc_number)
+  list(
+    cst = cst,
+    security = security,
+    base_url = base_url,
+    api_key = api_key,
+    acc_type = acc_type_upper,
+    acc_number = acc_number
+  )
 }
 
 # Internal helper for requests
-.ig_request <- function(path, auth, api_key = NULL, method = c("GET", "POST", "DELETE"), query = list(), body = NULL, mock_response = NULL) {
+.ig_request <- function(path, auth, method = c("GET", "POST", "DELETE"), query = list(), body = NULL, mock_response = NULL) {
   method <- match.arg(method)
   if (!is.null(mock_response)) {
-    # Assume user provided data.frame-like structure or list convertible to tibble
     return(tibble::as_tibble(mock_response))
   }
   if (identical(Sys.getenv("IGFETCHR_TESTING"), "true")) {
@@ -77,44 +94,61 @@ ig_auth <- function(username, password, api_key, acc_type = "DEMO", acc_number =
   if (is.null(auth) || !is.list(auth) || is.null(auth$base_url)) {
     stop("`auth` must be a list returned from ig_auth() with a base_url element.")
   }
+  if (is.null(auth$api_key) || !is.character(auth$api_key) || nchar(auth$api_key) == 0) {
+    stop("`auth` must contain a non-empty api_key.")
+  }
+
   url <- paste0(auth$base_url, path)
-  headers <- httr::add_headers(
-    "X-IG-API-KEY" = api_key %||% "",
+
+  # Construct headers in a single call
+  headers_list <- list(
+    "X-IG-API-KEY" = auth$api_key,
     "CST" = auth$cst %||% "",
     "X-SECURITY-TOKEN" = auth$security %||% "",
     "Accept" = "application/json"
   )
+  if (!is.null(auth$acc_number)) {
+    headers_list[["IG-ACCOUNT-ID"]] <- auth$acc_number
+  }
+  headers <- do.call(httr::add_headers, headers_list)
 
-  resp <- switch(
-    method,
-    GET = httr::GET(url, headers, query = query),
-    POST = httr::POST(url, headers, body = body, encode = "json"),
-    DELETE = httr::DELETE(url, headers)
-  )
+  # Execute request with tryCatch
+  resp <- tryCatch({
+    switch(
+      method,
+      GET = httr::GET(url, headers, query = query),
+      POST = httr::POST(url, headers, body = body, encode = "json"),
+      DELETE = httr::DELETE(url, headers)
+    )
+  }, error = function(e) {
+    stop("Failed to execute HTTP request: ", e$message)
+  })
+
+  # Verify response is a valid httr response object
+  if (!inherits(resp, "response")) {
+    stop("Invalid response object returned by httr. Check network connection or API availability.")
+  }
+
   status <- httr::status_code(resp)
   if (status >= 400) {
-    msg <- tryCatch(httr::content(resp, "text", encoding = "UTF-8"), error = function(e) "")
+    msg <- tryCatch(httr::content(resp, "text", encoding = "UTF-8"), error = function(e) "Unknown error")
     stop("API request failed (status ", status, "): ", msg)
   }
+
   content <- httr::content(resp, "text", encoding = "UTF-8")
   json <- jsonlite::fromJSON(content, simplifyVector = TRUE)
-  # If response contains a top-level list with prices/markets/accounts, try to coerce to tibble
   if (is.data.frame(json)) {
     return(tibble::as_tibble(json))
   }
-  # Some IG endpoints wrap data inside fields like "prices" or "markets"
   if (is.list(json) && length(json) == 1 && is.data.frame(json[[1]])) {
     return(tibble::as_tibble(json[[1]]))
   }
-  # Fallback: convert lists to tibble when possible
   if (is.list(json)) {
-    # try to identify a table-like element
     table_elt <- json[["prices"]] %||% json[["markets"]] %||% json[["accounts"]] %||% json[["positions"]] %||% NULL
     if (!is.null(table_elt) && is.data.frame(table_elt)) {
       return(tibble::as_tibble(table_elt))
     }
   }
-  # Return list wrapped as tibble with single row if nothing else
   return(tibble::as_tibble(list(response = json)))
 }
 
@@ -200,13 +234,22 @@ ig_get_historical <- function(epic, from = NULL, to = NULL, resolution = "D", au
 #' @return tibble or list depending on endpoint structure
 #' @examples
 #' \dontrun{
-#' auth <- ig_auth("user", "pass", "api_key")
+#' auth <- ig_auth(username = "your_username", password = "your_password", api_key = "your_api_key", acc_type = "DEMO", acc_number = "ABC123")
 #' accounts <- ig_get_accounts(auth)
 #' }
 #' @export
-ig_get_accounts <- function(auth, api_key = NULL, mock_response = NULL) {
+ig_get_accounts <- function(auth, mock_response = NULL) {
   path <- "/accounts"
-  res <- .ig_request(path, auth = auth, api_key = api_key, method = "GET", mock_response = mock_response)
+  
+  # Call .ig_request() without api_key parameter
+  res <- .ig_request(
+    path = path,
+    auth = auth,
+    method = "GET",
+    mock_response = mock_response
+  )
+  
+  # Return as tibble (rely on .ig_request()'s handling for structure)
   tibble::as_tibble(res)
 }
 
