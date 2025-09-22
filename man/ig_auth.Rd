@@ -4,19 +4,21 @@
 \alias{ig_auth}
 \title{Authenticate with IG Trading API}
 \usage{
-ig_auth(identifier, password, api_key, demo = TRUE)
+ig_auth(username, password, api_key, acc_type = "DEMO", acc_number = NULL)
 }
 \arguments{
-\item{identifier}{IG account username (character)}
+\item{username}{IG account username (character)}
 
 \item{password}{IG account password (character)}
 
 \item{api_key}{API key from https://labs.ig.com (character)}
 
-\item{demo}{Logical; use demo API if TRUE (default TRUE)}
+\item{acc_type}{Account type: "DEMO" or "LIVE" (character, default "DEMO")}
+
+\item{acc_number}{Optional account number (character)}
 }
 \value{
-A named list with elements: cst, security, and base_url. Use this list as the `auth` argument
+A named list with elements: cst, security, base_url, acc_type, and acc_number. Use this list as the `auth` argument
   in other functions.
 }
 \description{
@@ -24,6 +26,6 @@ Authenticate to the IG Trading REST API and return required tokens for subsequen
 }
 \examples{
 \dontrun{
-auth <- ig_auth("my_user", "my_pass", "my_api_key", demo = TRUE)
+auth <- ig_auth("your_username", "your_password", "your_api_key", acc_type = "DEMO", acc_number = "ABC123")
 }
 }

@@ -3,7 +3,7 @@ library(testthat)
 test_that("ig_auth returns mock tokens in testing mode", {
   Sys.setenv(IGFETCHR_TESTING = "true")
   on.exit(Sys.unsetenv("IGFETCHR_TESTING"))
-  auth <- ig_auth("user", "pass", "key", demo = TRUE)
+  auth <- ig_auth("user", "pass", "key", acc_type = "DEMO")
   expect_type(auth, "list")
   expect_true(all(c("cst", "security", "base_url") %in% names(auth)))
   expect_true(grepl("demo-api", auth$base_url) || grepl("api.ig.com", auth$base_url))

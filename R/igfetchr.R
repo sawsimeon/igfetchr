@@ -11,27 +11,33 @@
 #'
 #' Authenticate to the IG Trading REST API and return required tokens for subsequent calls.
 #'
-#' @param identifier IG account username (character)
+#' @param username IG account username (character)
 #' @param password IG account password (character)
 #' @param api_key API key from https://labs.ig.com (character)
-#' @param demo Logical; use demo API if TRUE (default TRUE)
+#' @param acc_type Account type: "DEMO" or "LIVE" (character, default "DEMO")
+#' @param acc_number Optional account number (character)
 #' @return A named list with elements: cst, security, and base_url. Use this list as the `auth` argument
 #'   in other functions.
 #' @examples
 #' \dontrun{
-#' auth <- ig_auth("my_user", "my_pass", "my_api_key", demo = TRUE)
+#' auth <- ig_auth("your_username", "your_password", "your_api_key", acc_type = "DEMO", acc_number = "ABC123")
 #' }
 #' @export
-ig_auth <- function(identifier, password, api_key, demo = TRUE) {
-  stopifnot(is.character(identifier), is.character(password), is.character(api_key))
-  base_url <- if (isTRUE(demo)) "https://demo-api.ig.com/gateway/deal" else "https://api.ig.com/gateway/deal"
+ig_auth <- function(username, password, api_key, acc_type = "DEMO", acc_number = NULL) {
+  stopifnot(is.character(username), is.character(password), is.character(api_key))
+  if (!is.character(acc_type) || length(acc_type) != 1) stop("`acc_type` must be a single character, e.g. 'DEMO' or 'LIVE'")
+  acc_type_upper <- toupper(acc_type)
+  base_url <- if (identical(acc_type_upper, "DEMO")) "https://demo-api.ig.com/gateway/deal" else "https://api.ig.com/gateway/deal"
 
   # Support offline/mock mode for tests
   if (identical(Sys.getenv("IGFETCHR_TESTING"), "true")) {
     return(list(cst = "mock_cst", security = "mock_security", base_url = base_url))
   }
 
-  body <- jsonlite::toJSON(list(identifier = identifier, password = password), auto_unbox = TRUE)
+  body_list <- list(identifier = username, password = password)
+  if (!is.null(acc_type)) body_list$accountType <- acc_type_upper
+  if (!is.null(acc_number)) body_list$accountNumber <- acc_number
+  body <- jsonlite::toJSON(body_list, auto_unbox = TRUE)
   resp <- httr::POST(
     url = paste0(base_url, "/session"),
     httr::add_headers(
@@ -55,7 +61,7 @@ ig_auth <- function(identifier, password, api_key, demo = TRUE) {
     stop("Authentication did not return required headers (CST / X-SECURITY-TOKEN).")
   }
 
-  list(cst = cst, security = security, base_url = base_url)
+  list(cst = cst, security = security, base_url = base_url, acc_type = acc_type_upper, acc_number = acc_number)
 }
 
 # Internal helper for requests
