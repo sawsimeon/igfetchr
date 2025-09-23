@@ -35,7 +35,7 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Saw Simeon \email{saw.simeon.brown@gmail.com}
+\strong{Maintainer}: Saw Simeon \email{saw.s@ku.th}
 
 }
 \keyword{internal}
