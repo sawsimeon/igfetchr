@@ -262,7 +262,7 @@ ig_search_markets <- function(query, auth, mock_response = NULL) {
 #'   password = "your_password",
 #'   api_key = "your_api_key",
 #'   acc_type = "DEMO",
-#'   acc_number = "Z5AMR1"
+#'   acc_number = "ABC123"
 #' )
 #' price <- ig_get_price("CS.D.USDCHF.CFD.IP", auth)
 #' print(price)
@@ -419,7 +419,7 @@ ig_get_accounts <- function(auth, mock_response = NULL) {
 #'   password = "your_password",
 #'   api_key = "your_api_key",
 #'   acc_type = "DEMO",
-#'   acc_number = "Z5AMR1"
+#'   acc_number = "ABC123"
 #' )
 #' options <- ig_get_options(auth)
 #' print(options)
@@ -545,7 +545,7 @@ ig_execute_trade <- function(epic, direction, size, auth, limit = NULL, stop = N
 #'   password = "your_password",
 #'   api_key = "your_api_key",
 #'   acc_type = "DEMO",
-#'   acc_number = "Z5AMR1"
+#'   acc_number = "ABC123"
 #' )
 #' ig_close_session(auth)
 #'

@@ -9,38 +9,52 @@ ig_execute_trade(
   direction,
   size,
   auth,
-  api_key = NULL,
   limit = NULL,
   stop = NULL,
   mock_response = NULL
 )
 }
 \arguments{
-\item{epic}{Market epic (character)}
+\item{epic}{Character. Market epic (e.g., "CS.D.USDCHF.CFD.IP").}
 
-\item{direction}{"BUY" or "SELL" (character)}
+\item{direction}{Character. Trade direction, either "BUY" or "SELL".}
 
-\item{size}{Numeric size (units)}
+\item{size}{Numeric. Trade size (units).}
 
-\item{auth}{Authentication list from ig_auth()}
+\item{auth}{List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.}
 
-\item{api_key}{API key (optional)}
+\item{limit}{Numeric. Optional limit price for the trade.}
 
-\item{limit}{Optional numeric limit price}
+\item{stop}{Numeric. Optional stop price for the trade.}
 
-\item{stop}{Optional numeric stop price}
-
-\item{mock_response}{Optional mock response (data.frame or list) to avoid network in tests}
+\item{mock_response}{List or data frame. Optional mock response for testing, bypassing the API call.}
 }
 \value{
-tibble with trade confirmation (dealId, status, dealReference, etc.)
+A tibble with trade confirmation details, including columns like `dealId`, `dealReference`, `status`, and others as returned by the IG API `/positions/otc` endpoint.
 }
 \description{
-Place a market trade (BUY/SELL) for an epic. For tests use `mock_response`.
+Places a market trade (BUY/SELL) for a specified market epic. For testing, use `mock_response` to avoid network calls.
 }
 \examples{
 \dontrun{
-auth <- ig_auth("user", "pass", "api_key")
-res <- ig_execute_trade("CS.D.EURUSD.CFD.IP", "BUY", 1.0, auth)
+# Authenticate and execute a trade
+auth <- ig_auth(
+  username = "your_username",
+  password = "your_password",
+  api_key = "your_api_key",
+  acc_type = "DEMO",
+  acc_number = "ABC123"
+)
+res <- ig_execute_trade("CS.D.USDCHF.CFD.IP", "BUY", 1.0, auth, limit = 0.855, stop = 0.845)
+print(res)
+
+# Using mock response for testing
+mock_response <- data.frame(
+  dealId = "DIXXXX",
+  dealReference = "REF123",
+  status = "OPEN"
+)
+res <- ig_execute_trade("CS.D.USDCHF.CFD.IP", "BUY", 1.0, auth, mock_response = mock_response)
 }
+
 }

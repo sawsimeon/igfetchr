@@ -4,26 +4,41 @@
 \alias{ig_search_markets}
 \title{Search markets}
 \usage{
-ig_search_markets(query, auth, api_key = NULL, mock_response = NULL)
+ig_search_markets(query, auth, mock_response = NULL)
 }
 \arguments{
-\item{query}{Character search string (e.g., "USD/CHF")}
+\item{query}{Character. Search string for markets (e.g., "USD/CHF").}
 
-\item{auth}{Authentication list returned by ig_auth()}
+\item{auth}{List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.}
 
-\item{api_key}{API key (optional; if NULL, must have been used during ig_auth())}
-
-\item{mock_response}{Optional mock response (for tests); a data.frame or list convertible to tibble}
+\item{mock_response}{List or data frame. Optional mock response for testing, bypassing the API call.}
 }
 \value{
-tibble with market information
+A tibble with market information, including columns like `epic`, `instrumentName`, `marketStatus`, and others as returned by the IG API `/markets` endpoint.
 }
 \description{
-Search markets by text query. Returns a tibble of matching markets.
+Search markets by text query. Returns a tibble of matching markets from the IG API.
 }
 \examples{
 \dontrun{
-auth <- ig_auth("user", "pass", "api_key")
+# Authenticate and search markets
+auth <- ig_auth(
+  username = "your_username",
+  password = "your_password",
+  api_key = "your_api_key",
+  acc_type = "DEMO",
+  acc_number = "ABC123"
+)
 markets <- ig_search_markets("USD/CHF", auth)
+print(markets)
+
+# Using mock response for testing
+mock_response <- data.frame(
+  epic = "CS.D.USDCHF.MINI.IP",
+  instrumentName = "USD/CHF Mini",
+  marketStatus = "OPEN"
+)
+markets <- ig_search_markets("USD/CHF", auth, mock_response = mock_response)
 }
+
 }

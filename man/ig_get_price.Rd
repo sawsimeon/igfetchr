@@ -4,26 +4,43 @@
 \alias{ig_get_price}
 \title{Get current price for a market}
 \usage{
-ig_get_price(epic, auth, api_key = NULL, mock_response = NULL)
+ig_get_price(epic, auth, mock_response = NULL)
 }
 \arguments{
-\item{epic}{Market epic (character)}
+\item{epic}{Character. Market epic (e.g., "CS.D.USDCHF.CFD.IP").}
 
-\item{auth}{Authentication list from ig_auth()}
+\item{auth}{List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.}
 
-\item{api_key}{API key (optional)}
-
-\item{mock_response}{Optional mock response (for tests)}
+\item{mock_response}{List or data frame. Optional mock response for testing, bypassing the API call.}
 }
 \value{
-tibble with current price information
+A tibble with price information, including columns like `snapshotTime`, `openPrice`, `closePrice`, `highPrice`, `lowPrice`, and others as returned by the IG API `/prices/{epic}` endpoint.
 }
 \description{
-Fetch current price(s) for the given market epic.
+Fetches current price(s) for the given market epic from the IG API.
 }
 \examples{
 \dontrun{
-auth <- ig_auth("user", "pass", "api_key")
-price <- ig_get_price("CS.D.EURUSD.CFD.IP", auth)
+# Authenticate and get price
+auth <- ig_auth(
+  username = "your_username",
+  password = "your_password",
+  api_key = "your_api_key",
+  acc_type = "DEMO",
+  acc_number = "ABC123"
+)
+price <- ig_get_price("CS.D.USDCHF.CFD.IP", auth)
+print(price)
+
+# Using mock response for testing
+mock_response <- data.frame(
+  snapshotTime = "2025/09/23 10:00:00",
+  openPrice = 0.850,
+  closePrice = 0.851,
+  highPrice = 0.852,
+  lowPrice = 0.849
+)
+price <- ig_get_price("CS.D.USDCHF.CFD.IP", auth, mock_response = mock_response)
 }
+
 }

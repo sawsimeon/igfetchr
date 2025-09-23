@@ -10,34 +10,50 @@ ig_get_historical(
   to = NULL,
   resolution = "D",
   auth,
-  api_key = NULL,
   mock_response = NULL
 )
 }
 \arguments{
-\item{epic}{Market epic (character)}
+\item{epic}{Character. Market epic (e.g., "CS.D.USDCHF.CFD.IP").}
 
-\item{from}{Start datetime or date as character (optional)}
+\item{from}{Character or Date. Start datetime or date (e.g., "2020-01-01"). Optional.}
 
-\item{to}{End datetime or date as character (optional)}
+\item{to}{Character or Date. End datetime or date (e.g., "2020-12-31"). Optional.}
 
-\item{resolution}{Character resolution code (e.g., "D" for daily). Defaults to "D".}
+\item{resolution}{Character. Resolution code (e.g., "D" for daily, "H" for hourly). Defaults to "D".}
 
-\item{auth}{Authentication list from ig_auth()}
+\item{auth}{List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.}
 
-\item{api_key}{API key (optional)}
-
-\item{mock_response}{Optional mock response (for tests)}
+\item{mock_response}{List or data frame. Optional mock response for testing, bypassing the API call.}
 }
 \value{
-tibble with historical OHLC data
+A tibble with historical OHLC data, including columns like `snapshotTime`, `openPrice`, `highPrice`, `lowPrice`, `closePrice`, and others as returned by the IG API `/prices/{epic}` endpoint.
 }
 \description{
-Fetch historical prices for a market epic between from and to (ISO 8601 or Date-like).
+Fetches historical prices for a market epic between specified dates at a given resolution.
 }
 \examples{
 \dontrun{
-auth <- ig_auth("user", "pass", "api_key")
-hist <- ig_get_historical("CS.D.EURUSD.CFD.IP", "2020-01-01", "2020-12-31", "D", auth)
+# Authenticate and get historical prices
+auth <- ig_auth(
+  username = "your_username",
+  password = "your_password",
+  api_key = "your_api_key",
+  acc_type = "DEMO",
+  acc_number = "ABC123"
+)
+hist <- ig_get_historical("CS.D.USDCHF.CFD.IP", "2020-01-01", "2020-12-31", "D", auth)
+print(hist)
+
+# Using mock response for testing
+mock_response <- data.frame(
+  snapshotTime = "2020/01/01 00:00:00",
+  openPrice = 0.970,
+  highPrice = 0.975,
+  lowPrice = 0.965,
+  closePrice = 0.971
+)
+hist <- ig_get_historical("CS.D.USDCHF.CFD.IP", "2020-01-01", "2020-12-31", "D", auth, mock_response = mock_response)
 }
+
 }

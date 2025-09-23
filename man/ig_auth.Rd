@@ -19,7 +19,7 @@ ig_auth(
 
 \item{api_key}{Character. IG API key. Defaults to `IG_SERVICE_API_KEY` environment variable.}
 
-\item{acc_type}{Character. Account type, either "DEMO" or "LIVE". Defaults to `IG_SERVICE_ACC_TYPE` or "DEMO".}
+\item{acc_type}{Character. Account type, either "DEMO" or "LIVE". Defaults to "DEMO".}
 
 \item{acc_number}{Character. Optional account number. Defaults to `IG_SERVICE_ACC_NUMBER` or NULL.}
 }
@@ -45,7 +45,7 @@ optional account type and number.
 Sys.setenv(IG_SERVICE_USERNAME = "your_username")
 Sys.setenv(IG_SERVICE_PASSWORD = "your_password")
 Sys.setenv(IG_SERVICE_API_KEY = "your_api_key")
-Sys.setenv(IG_SERVICE_ACC_NUMBER = "Z5AMR1")
+Sys.setenv(IG_SERVICE_ACC_NUMBER = "ABC123")
 Sys.setenv(IG_SERVICE_ACC_TYPE = "DEMO")
 auth <- ig_auth()
 
@@ -55,7 +55,7 @@ auth <- ig_auth(
   password = "your_password",
   api_key = "your_api_key",
   acc_type = "DEMO",
-  acc_number = "Z5AMR1"
+  acc_number = "ABC123"
 )
 }
 

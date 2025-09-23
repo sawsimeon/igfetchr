@@ -2,18 +2,40 @@
 % Please edit documentation in R/igfetchr.R
 \name{ig_close_session}
 \alias{ig_close_session}
-\title{Close session / logout (alias)}
+\alias{ig_logout}
+\title{Close session}
 \usage{
-ig_close_session(auth, api_key = NULL)
+ig_close_session(auth, mock_response = NULL)
+
+ig_logout(auth, mock_response = NULL)
 }
 \arguments{
-\item{auth}{Authentication list from ig_auth()}
+\item{auth}{List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.}
 
-\item{api_key}{API key (optional)}
+\item{mock_response}{Logical. Optional mock response for testing (returns `TRUE` if provided). Defaults to `NULL`.}
 }
 \value{
-Logical TRUE if the session was closed successfully.
+Logical `TRUE` if the session was closed successfully.
 }
 \description{
-Convenience wrapper for ig_logout()
+Closes the authenticated IG API session.
+
+Alias for `ig_close_session()`.
+}
+\examples{
+\dontrun{
+# Authenticate and close session
+auth <- ig_auth(
+  username = "your_username",
+  password = "your_password",
+  api_key = "your_api_key",
+  acc_type = "DEMO",
+  acc_number = "ABC123"
+)
+ig_close_session(auth)
+
+# Using mock response for testing
+ig_close_session(auth, mock_response = TRUE)
+}
+
 }

@@ -2,26 +2,42 @@
 % Please edit documentation in R/igfetchr.R
 \name{ig_get_options}
 \alias{ig_get_options}
-\title{Get options / derivative positions}
+\title{Get options/derivative positions}
 \usage{
-ig_get_options(auth, api_key = NULL, mock_response = NULL)
+ig_get_options(auth, mock_response = NULL)
 }
 \arguments{
-\item{auth}{Authentication list from ig_auth()}
+\item{auth}{List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.}
 
-\item{api_key}{API key (optional)}
-
-\item{mock_response}{Optional mock response (for tests); data.frame or list convertible to tibble}
+\item{mock_response}{List or data frame. Optional mock response for testing, bypassing the API call.}
 }
 \value{
-tibble with options position details (dealId, size, direction, instrument, etc.)
+A tibble with options/derivative position details, including columns like `dealId`, `size`, `direction`, `instrumentType`, and others as returned by the IG API `/positions` endpoint. If `instrumentType` is available, filters for "OPTION", "DERIVATIVE", or "OPTION_CONTRACT"; otherwise, returns all positions.
 }
 \description{
-Retrieve positions filtered for options/derivatives. Returns a tibble with position details.
+Retrieves positions filtered for options/derivatives from the IG API. Returns a tibble with position details.
 }
 \examples{
 \dontrun{
-auth <- ig_auth("user", "pass", "api_key")
+# Authenticate and get options positions
+auth <- ig_auth(
+  username = "your_username",
+  password = "your_password",
+  api_key = "your_api_key",
+  acc_type = "DEMO",
+  acc_number = "ABC123"
+)
 options <- ig_get_options(auth)
+print(options)
+
+# Using mock response for testing
+mock_response <- data.frame(
+  dealId = "DIXXXX",
+  size = 1.5,
+  direction = "BUY",
+  instrumentType = "OPTION"
+)
+options <- ig_get_options(auth, mock_response = mock_response)
 }
+
 }
