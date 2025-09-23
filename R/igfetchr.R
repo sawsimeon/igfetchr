@@ -16,7 +16,7 @@
 #' @param username Character. IG account username. Defaults to `IG_SERVICE_USERNAME` environment variable.
 #' @param password Character. IG account password. Defaults to `IG_SERVICE_PASSWORD` environment variable.
 #' @param api_key Character. IG API key. Defaults to `IG_SERVICE_API_KEY` environment variable.
-#' @param acc_type Character. Account type, either "DEMO" or "LIVE". Defaults to `IG_SERVICE_ACC_TYPE` or "DEMO".
+#' @param acc_type Character. Account type, either "DEMO" or "LIVE". Defaults to "DEMO".
 #' @param acc_number Character. Optional account number. Defaults to `IG_SERVICE_ACC_NUMBER` or NULL.
 #'
 #' @return A list containing:
@@ -35,7 +35,7 @@
 #' Sys.setenv(IG_SERVICE_USERNAME = "your_username")
 #' Sys.setenv(IG_SERVICE_PASSWORD = "your_password")
 #' Sys.setenv(IG_SERVICE_API_KEY = "your_api_key")
-#' Sys.setenv(IG_SERVICE_ACC_NUMBER = "Z5AMR1")
+#' Sys.setenv(IG_SERVICE_ACC_NUMBER = "ABC123")
 #' Sys.setenv(IG_SERVICE_ACC_TYPE = "DEMO")
 #' auth <- ig_auth()
 #'
@@ -45,7 +45,7 @@
 #'   password = "your_password",
 #'   api_key = "your_api_key",
 #'   acc_type = "DEMO",
-#'   acc_number = "Z5AMR1"
+#'   acc_number = "ABC123"
 #' )
 #' }
 #'
@@ -197,73 +197,159 @@ ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
 
 #' Search markets
 #'
-#' Search markets by text query. Returns a tibble of matching markets.
+#' Search markets by text query. Returns a tibble of matching markets from the IG API.
 #'
-#' @param query Character search string (e.g., "USD/CHF")
-#' @param auth Authentication list returned by ig_auth()
-#' @param api_key API key (optional; if NULL, must have been used during ig_auth())
-#' @param mock_response Optional mock response (for tests); a data.frame or list convertible to tibble
-#' @return tibble with market information
+#' @param query Character. Search string for markets (e.g., "USD/CHF").
+#' @param auth List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.
+#' @param mock_response List or data frame. Optional mock response for testing, bypassing the API call.
+#'
+#' @return A tibble with market information, including columns like `epic`, `instrumentName`, `marketStatus`, and others as returned by the IG API `/markets` endpoint.
+#'
 #' @examples
 #' \dontrun{
-#' auth <- ig_auth("user", "pass", "api_key")
+#' # Authenticate and search markets
+#' auth <- ig_auth(
+#'   username = "your_username",
+#'   password = "your_password",
+#'   api_key = "your_api_key",
+#'   acc_type = "DEMO",
+#'   acc_number = "ABC123"
+#' )
 #' markets <- ig_search_markets("USD/CHF", auth)
+#' print(markets)
+#'
+#' # Using mock response for testing
+#' mock_response <- data.frame(
+#'   epic = "CS.D.USDCHF.MINI.IP",
+#'   instrumentName = "USD/CHF Mini",
+#'   marketStatus = "OPEN"
+#' )
+#' markets <- ig_search_markets("USD/CHF", auth, mock_response = mock_response)
 #' }
+#'
 #' @export
-ig_search_markets <- function(query, auth, api_key = NULL, mock_response = NULL) {
+ig_search_markets <- function(query, auth, mock_response = NULL) {
   stopifnot(is.character(query))
-  path <- paste0("/markets?search=", utils::URLencode(query, reserved = TRUE))
-  res <- .ig_request(path, auth = auth, api_key = api_key, method = "GET", mock_response = mock_response)
+  path <- paste0("/markets?searchTerm=", utils::URLencode(query, reserved = TRUE))
+  
+  # Call .ig_request() without api_key parameter
+  res <- .ig_request(
+    path = path,
+    auth = auth,
+    method = "GET",
+    mock_response = mock_response
+  )
+  
+  # Return as tibble
   tibble::as_tibble(res)
 }
 
 #' Get current price for a market
 #'
-#' Fetch current price(s) for the given market epic.
+#' Fetches current price(s) for the given market epic from the IG API.
 #'
-#' @param epic Market epic (character)
-#' @param auth Authentication list from ig_auth()
-#' @param api_key API key (optional)
-#' @param mock_response Optional mock response (for tests)
-#' @return tibble with current price information
+#' @param epic Character. Market epic (e.g., "CS.D.USDCHF.CFD.IP").
+#' @param auth List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.
+#' @param mock_response List or data frame. Optional mock response for testing, bypassing the API call.
+#'
+#' @return A tibble with price information, including columns like `snapshotTime`, `openPrice`, `closePrice`, `highPrice`, `lowPrice`, and others as returned by the IG API `/prices/{epic}` endpoint.
+#'
 #' @examples
 #' \dontrun{
-#' auth <- ig_auth("user", "pass", "api_key")
-#' price <- ig_get_price("CS.D.EURUSD.CFD.IP", auth)
+#' # Authenticate and get price
+#' auth <- ig_auth(
+#'   username = "your_username",
+#'   password = "your_password",
+#'   api_key = "your_api_key",
+#'   acc_type = "DEMO",
+#'   acc_number = "Z5AMR1"
+#' )
+#' price <- ig_get_price("CS.D.USDCHF.CFD.IP", auth)
+#' print(price)
+#'
+#' # Using mock response for testing
+#' mock_response <- data.frame(
+#'   snapshotTime = "2025/09/23 10:00:00",
+#'   openPrice = 0.850,
+#'   closePrice = 0.851,
+#'   highPrice = 0.852,
+#'   lowPrice = 0.849
+#' )
+#' price <- ig_get_price("CS.D.USDCHF.CFD.IP", auth, mock_response = mock_response)
 #' }
+#'
 #' @export
-ig_get_price <- function(epic, auth, api_key = NULL, mock_response = NULL) {
+ig_get_price <- function(epic, auth, mock_response = NULL) {
   stopifnot(is.character(epic))
   path <- paste0("/prices/", utils::URLencode(epic, reserved = TRUE))
-  res <- .ig_request(path, auth = auth, api_key = api_key, method = "GET", mock_response = mock_response)
+  
+  # Call .ig_request() without api_key parameter
+  res <- .ig_request(
+    path = path,
+    auth = auth,
+    method = "GET",
+    mock_response = mock_response
+  )
+  
+  # Return as tibble
   tibble::as_tibble(res)
 }
 
 #' Get historical prices
 #'
-#' Fetch historical prices for a market epic between from and to (ISO 8601 or Date-like).
+#' Fetches historical prices for a market epic between specified dates at a given resolution.
 #'
-#' @param epic Market epic (character)
-#' @param from Start datetime or date as character (optional)
-#' @param to End datetime or date as character (optional)
-#' @param resolution Character resolution code (e.g., "D" for daily). Defaults to "D".
-#' @param auth Authentication list from ig_auth()
-#' @param api_key API key (optional)
-#' @param mock_response Optional mock response (for tests)
-#' @return tibble with historical OHLC data
+#' @param epic Character. Market epic (e.g., "CS.D.USDCHF.CFD.IP").
+#' @param from Character or Date. Start datetime or date (e.g., "2020-01-01"). Optional.
+#' @param to Character or Date. End datetime or date (e.g., "2020-12-31"). Optional.
+#' @param resolution Character. Resolution code (e.g., "D" for daily, "H" for hourly). Defaults to "D".
+#' @param auth List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.
+#' @param mock_response List or data frame. Optional mock response for testing, bypassing the API call.
+#'
+#' @return A tibble with historical OHLC data, including columns like `snapshotTime`, `openPrice`, `highPrice`, `lowPrice`, `closePrice`, and others as returned by the IG API `/prices/{epic}` endpoint.
+#'
 #' @examples
 #' \dontrun{
-#' auth <- ig_auth("user", "pass", "api_key")
-#' hist <- ig_get_historical("CS.D.EURUSD.CFD.IP", "2020-01-01", "2020-12-31", "D", auth)
+#' # Authenticate and get historical prices
+#' auth <- ig_auth(
+#'   username = "your_username",
+#'   password = "your_password",
+#'   api_key = "your_api_key",
+#'   acc_type = "DEMO",
+#'   acc_number = "ABC123"
+#' )
+#' hist <- ig_get_historical("CS.D.USDCHF.CFD.IP", "2020-01-01", "2020-12-31", "D", auth)
+#' print(hist)
+#'
+#' # Using mock response for testing
+#' mock_response <- data.frame(
+#'   snapshotTime = "2020/01/01 00:00:00",
+#'   openPrice = 0.970,
+#'   highPrice = 0.975,
+#'   lowPrice = 0.965,
+#'   closePrice = 0.971
+#' )
+#' hist <- ig_get_historical("CS.D.USDCHF.CFD.IP", "2020-01-01", "2020-12-31", "D", auth, mock_response = mock_response)
 #' }
+#'
 #' @export
-ig_get_historical <- function(epic, from = NULL, to = NULL, resolution = "D", auth, api_key = NULL, mock_response = NULL) {
+ig_get_historical <- function(epic, from = NULL, to = NULL, resolution = "D", auth, mock_response = NULL) {
   stopifnot(is.character(epic), is.character(resolution))
   q <- list(resolution = resolution)
   if (!is.null(from)) q$from <- as.character(from)
   if (!is.null(to)) q$to <- as.character(to)
-  path <- paste0("/prices/", utils::URLencode(epic, reserved = TRUE), "/history")
-  res <- .ig_request(path, auth = auth, api_key = api_key, method = "GET", query = q, mock_response = mock_response)
+  path <- paste0("/prices/", utils::URLencode(epic, reserved = TRUE))
+  
+  # Call .ig_request() without api_key parameter
+  res <- .ig_request(
+    path = path,
+    auth = auth,
+    method = "GET",
+    query = q,
+    mock_response = mock_response
+  )
+  
+  # Return as tibble
   tibble::as_tibble(res)
 }
 
@@ -316,24 +402,48 @@ ig_get_accounts <- function(auth, mock_response = NULL) {
   tibble::as_tibble(res)
 }
 
-#' Get options / derivative positions
+#' Get options/derivative positions
 #'
-#' Retrieve positions filtered for options/derivatives. Returns a tibble with position details.
+#' Retrieves positions filtered for options/derivatives from the IG API. Returns a tibble with position details.
 #'
-#' @param auth Authentication list from ig_auth()
-#' @param api_key API key (optional)
-#' @param mock_response Optional mock response (for tests); data.frame or list convertible to tibble
-#' @return tibble with options position details (dealId, size, direction, instrument, etc.)
+#' @param auth List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.
+#' @param mock_response List or data frame. Optional mock response for testing, bypassing the API call.
+#'
+#' @return A tibble with options/derivative position details, including columns like `dealId`, `size`, `direction`, `instrumentType`, and others as returned by the IG API `/positions` endpoint. If `instrumentType` is available, filters for "OPTION", "DERIVATIVE", or "OPTION_CONTRACT"; otherwise, returns all positions.
+#'
 #' @examples
 #' \dontrun{
-#' auth <- ig_auth("user", "pass", "api_key")
+#' # Authenticate and get options positions
+#' auth <- ig_auth(
+#'   username = "your_username",
+#'   password = "your_password",
+#'   api_key = "your_api_key",
+#'   acc_type = "DEMO",
+#'   acc_number = "Z5AMR1"
+#' )
 #' options <- ig_get_options(auth)
+#' print(options)
+#'
+#' # Using mock response for testing
+#' mock_response <- data.frame(
+#'   dealId = "DIXXXX",
+#'   size = 1.5,
+#'   direction = "BUY",
+#'   instrumentType = "OPTION"
+#' )
+#' options <- ig_get_options(auth, mock_response = mock_response)
 #' }
+#'
 #' @export
-ig_get_options <- function(auth, api_key = NULL, mock_response = NULL) {
+ig_get_options <- function(auth, mock_response = NULL) {
   # Using the /positions endpoint; filter may be applied client-side for options
   path <- "/positions"
-  res <- .ig_request(path, auth = auth, api_key = api_key, method = "GET", mock_response = mock_response)
+  res <- .ig_request(
+    path = path,
+    auth = auth,
+    method = "GET",
+    mock_response = mock_response
+  )
   df <- tibble::as_tibble(res)
   # Try to filter for option-like instruments if a column exists (best-effort)
   if ("instrumentType" %in% names(df)) {
@@ -346,24 +456,42 @@ ig_get_options <- function(auth, api_key = NULL, mock_response = NULL) {
 
 #' Execute a trade (place OTC position)
 #'
-#' Place a market trade (BUY/SELL) for an epic. For tests use `mock_response`.
+#' Places a market trade (BUY/SELL) for a specified market epic. For testing, use `mock_response` to avoid network calls.
 #'
-#' @param epic Market epic (character)
-#' @param direction "BUY" or "SELL" (character)
-#' @param size Numeric size (units)
-#' @param auth Authentication list from ig_auth()
-#' @param api_key API key (optional)
-#' @param limit Optional numeric limit price
-#' @param stop Optional numeric stop price
-#' @param mock_response Optional mock response (data.frame or list) to avoid network in tests
-#' @return tibble with trade confirmation (dealId, status, dealReference, etc.)
+#' @param epic Character. Market epic (e.g., "CS.D.USDCHF.CFD.IP").
+#' @param direction Character. Trade direction, either "BUY" or "SELL".
+#' @param size Numeric. Trade size (units).
+#' @param auth List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.
+#' @param limit Numeric. Optional limit price for the trade.
+#' @param stop Numeric. Optional stop price for the trade.
+#' @param mock_response List or data frame. Optional mock response for testing, bypassing the API call.
+#'
+#' @return A tibble with trade confirmation details, including columns like `dealId`, `dealReference`, `status`, and others as returned by the IG API `/positions/otc` endpoint.
+#'
 #' @examples
 #' \dontrun{
-#' auth <- ig_auth("user", "pass", "api_key")
-#' res <- ig_execute_trade("CS.D.EURUSD.CFD.IP", "BUY", 1.0, auth)
+#' # Authenticate and execute a trade
+#' auth <- ig_auth(
+#'   username = "your_username",
+#'   password = "your_password",
+#'   api_key = "your_api_key",
+#'   acc_type = "DEMO",
+#'   acc_number = "ABC123"
+#' )
+#' res <- ig_execute_trade("CS.D.USDCHF.CFD.IP", "BUY", 1.0, auth, limit = 0.855, stop = 0.845)
+#' print(res)
+#'
+#' # Using mock response for testing
+#' mock_response <- data.frame(
+#'   dealId = "DIXXXX",
+#'   dealReference = "REF123",
+#'   status = "OPEN"
+#' )
+#' res <- ig_execute_trade("CS.D.USDCHF.CFD.IP", "BUY", 1.0, auth, mock_response = mock_response)
 #' }
+#'
 #' @export
-ig_execute_trade <- function(epic, direction, size, auth, api_key = NULL, limit = NULL, stop = NULL, mock_response = NULL) {
+ig_execute_trade <- function(epic, direction, size, auth, limit = NULL, stop = NULL, mock_response = NULL) {
   stopifnot(is.character(epic), is.character(direction), is.numeric(size))
   if (!direction %in% c("BUY", "SELL")) stop("`direction` must be 'BUY' or 'SELL'")
 
@@ -383,61 +511,78 @@ ig_execute_trade <- function(epic, direction, size, auth, api_key = NULL, limit 
   body <- list(
     epic = epic,
     direction = direction,
-    size = size
+    size = size,
+    orderType = "MARKET",  # Default to market order
+    currencyCode = "USD"   # Default currency, adjust as needed
   )
-  if (!is.null(limit)) body$limit <- limit
-  if (!is.null(stop)) body$stop <- stop
+  if (!is.null(limit)) body$limitLevel <- limit
+  if (!is.null(stop)) body$stopLevel <- stop
 
-  res <- .ig_request(url_path, auth = auth, api_key = api_key, method = "POST", body = body)
+  res <- .ig_request(
+    path = url_path,
+    auth = auth,
+    method = "POST",
+    body = body,
+    mock_response = mock_response
+  )
   tibble::as_tibble(res)
 }
 
-#' Close session / logout
+#' Close session
 #'
-#' Close the authenticated session. Alias: ig_close_session is provided for clarity.
+#' Closes the authenticated IG API session.
 #'
-#' @param auth Authentication list from ig_auth()
-#' @param api_key API key (optional)
-#' @return Logical TRUE if the session was closed successfully.
+#' @param auth List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.
+#' @param mock_response Logical. Optional mock response for testing (returns `TRUE` if provided). Defaults to `NULL`.
+#'
+#' @return Logical `TRUE` if the session was closed successfully.
+#'
 #' @examples
 #' \dontrun{
-#' auth <- ig_auth("user", "pass", "api_key")
+#' # Authenticate and close session
+#' auth <- ig_auth(
+#'   username = "your_username",
+#'   password = "your_password",
+#'   api_key = "your_api_key",
+#'   acc_type = "DEMO",
+#'   acc_number = "Z5AMR1"
+#' )
 #' ig_close_session(auth)
+#'
+#' # Using mock response for testing
+#' ig_close_session(auth, mock_response = TRUE)
 #' }
+#'
 #' @export
-ig_logout <- function(auth, api_key = NULL) {
+ig_close_session <- function(auth, mock_response = NULL) {
+  if (!is.null(mock_response)) {
+    return(invisible(TRUE))
+  }
   if (identical(Sys.getenv("IGFETCHR_TESTING"), "true")) {
     return(invisible(TRUE))
   }
-  if (is.null(auth) || !is.list(auth)) {
-    stop("`auth` must be a list returned from ig_auth()")
+  if (is.null(auth) || !is.list(auth) || is.null(auth$base_url)) {
+    stop("`auth` must be a list returned from ig_auth() with a base_url element.")
   }
-  url <- paste0(auth$base_url, "/session")
-  headers <- httr::add_headers(
-    "X-IG-API-KEY" = api_key %||% "",
-    "CST" = auth$cst %||% "",
-    "X-SECURITY-TOKEN" = auth$security %||% ""
+
+  path <- "/session"
+  res <- .ig_request(
+    path = path,
+    auth = auth,
+    method = "DELETE",
+    mock_response = mock_response
   )
-  resp <- httr::DELETE(url, headers)
-  status <- httr::status_code(resp)
-  if (status >= 400) {
-    msg <- tryCatch(httr::content(resp, "text", encoding = "UTF-8"), error = function(e) "")
-    stop("Logout failed (status ", status, "): ", msg)
-  }
+  
   invisible(TRUE)
 }
 
-#' Close session / logout (alias)
+#' Close session (alias)
 #'
-#' Convenience wrapper for ig_logout()
+#' Alias for `ig_close_session()`.
 #'
-#' @param auth Authentication list from ig_auth()
-#' @param api_key API key (optional)
-#' @return Logical TRUE if the session was closed successfully.
+#' @rdname ig_close_session
 #' @export
-ig_close_session <- function(auth, api_key = NULL) {
-  ig_logout(auth = auth, api_key = api_key)
-}
+ig_logout <- ig_close_session
 
 #' Null-coalescing operator for internal use
 #' @noRd
