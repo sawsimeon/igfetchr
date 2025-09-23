@@ -1,0 +1,595 @@
+\nonstopmode{}
+\documentclass[a4paper]{book}
+\usepackage[times,inconsolata,hyper]{Rd}
+\usepackage{makeidx}
+\makeatletter\@ifl@t@r\fmtversion{2018/04/01}{}{\usepackage[utf8]{inputenc}}\makeatother
+% \usepackage{graphicx} % @USE GRAPHICX@
+\makeindex{}
+\begin{document}
+\chapter*{}
+\begin{center}
+{\textbf{\huge Package `igfetchr'}}
+\par\bigskip{\large \today}
+\end{center}
+\ifthenelse{\boolean{Rd@use@hyper}}{\hypersetup{pdftitle = {igfetchr: Simplified Access to IG Trading API}}}{}
+\ifthenelse{\boolean{Rd@use@hyper}}{\hypersetup{pdfauthor = {Saw Simeon}}}{}
+\begin{description}
+\raggedright{}
+\item[Type]\AsIs{Package}
+\item[Title]\AsIs{Simplified Access to IG Trading API}
+\item[Version]\AsIs{0.1.0}
+\item[Author]\AsIs{Saw Simeon }\email{saw.s@ku.th}\AsIs{}
+\item[Maintainer]\AsIs{Saw Simeon }\email{saw.s@ku.th}\AsIs{}
+\item[Description]\AsIs{Provides functions to fetch market data, search historical prices, execute trades, and get account details from the IG Trading REST API (labs.ig.com). Returns tidy tibbles for easy analysis. Trading CFDs and spread bets carry a high risk of losing money; this package is for data access and is not financial advice.}
+\item[License]\AsIs{MIT + file LICENSE}
+\item[Encoding]\AsIs{UTF-8}
+\item[Imports]\AsIs{httr, jsonlite, tibble}
+\item[Suggests]\AsIs{testthat (>= 3.0.0), knitr, rmarkdown, lubridate, httptest}
+\item[VignetteBuilder]\AsIs{knitr}
+\item[URL]\AsIs{}\url{https://github.com/sawsimeon/igfetchr}\AsIs{}
+\item[BugReports]\AsIs{}\url{https://github.com/sawsimeon/igfetchr/issues}\AsIs{}
+\item[RoxygenNote]\AsIs{7.3.3}
+\item[NeedsCompilation]\AsIs{no}
+\end{description}
+\Rdcontents{Contents}
+\HeaderA{igfetchr-package}{igfetchr: Access the IG Trading REST API}{igfetchr.Rdash.package}
+\keyword{internal}{igfetchr-package}
+%
+\begin{Description}
+igfetchr provides a small set of beginner-friendly functions to authenticate with and
+fetch market data, historical prices, account details, options positions, and execute
+trades from the IG Trading REST API (labs.ig.com). All functions return tidy tibbles
+for straightforward analysis.
+
+Helper functions to authenticate and fetch market/account data from the IG Trading REST API.
+All exported functions return tibbles where appropriate. This package is for data access only
+and not financial advice. Trading CFDs and spread bets carries a high risk of losing money.
+\end{Description}
+%
+\begin{Details}
+Disclaimer: Trading CFDs, spread bets, and options carries a high risk of losing money.
+This package provides data access and trade execution functionality only and is not
+financial or trading advice.
+\end{Details}
+%
+\begin{Author}
+\strong{Maintainer}: Saw Simeon \email{saw.s@ku.th}
+
+\end{Author}
+%
+\begin{SeeAlso}
+Useful links:
+\begin{itemize}
+
+\item{} \url{https://github.com/sawsimeon/igfetchr}
+\item{} Report bugs at \url{https://github.com/sawsimeon/igfetchr/issues}
+
+\end{itemize}
+
+
+
+Useful links:
+\begin{itemize}
+
+\item{} \url{https://github.com/sawsimeon/igfetchr}
+\item{} Report bugs at \url{https://github.com/sawsimeon/igfetchr/issues}
+
+\end{itemize}
+
+
+\end{SeeAlso}
+\HeaderA{.ig\_request}{Internal function to make IG API requests}{.ig.Rul.request}
+\keyword{internal}{.ig\_request}
+%
+\begin{Description}
+Makes HTTP requests to the IG API using authentication details from `ig\_auth()`.
+Handles GET, POST, and DELETE methods and processes JSON responses into tibbles.
+Not intended for direct use; called by higher-level functions like `ig\_get\_accounts()`.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+.ig_request(
+  path,
+  auth,
+  method = c("GET", "POST", "DELETE"),
+  query = list(),
+  body = NULL,
+  mock_response = NULL
+)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{path}] Character. API endpoint path (e.g., "/accounts").
+
+\item[\code{auth}] List. Authentication details from `ig\_auth()`, including `cst`, `security`, `base\_url`, `api\_key`, and `acc\_number`.
+
+\item[\code{method}] Character. HTTP method ("GET", "POST", or "DELETE"). Defaults to "GET".
+
+\item[\code{query}] List. Optional query parameters for GET requests.
+
+\item[\code{body}] List. Optional request body for POST requests.
+
+\item[\code{mock\_response}] List or data frame. Optional mock response for testing.
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+A tibble containing the API response data, or a tibble with a single column
+containing the raw JSON response if the response cannot be converted to a data frame.
+\end{Value}
+\HeaderA{ig\_auth}{Authenticate with the IG API}{ig.Rul.auth}
+%
+\begin{Description}
+Authenticates with the IG API to obtain session tokens (CST and X-SECURITY-TOKEN)
+for subsequent API requests. Supports environment variables for credentials and
+optional account type and number.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+ig_auth(
+  username = Sys.getenv("IG_SERVICE_USERNAME"),
+  password = Sys.getenv("IG_SERVICE_PASSWORD"),
+  api_key = Sys.getenv("IG_SERVICE_API_KEY"),
+  acc_type = Sys.getenv("IG_SERVICE_ACC_TYPE", "DEMO"),
+  acc_number = Sys.getenv("IG_SERVICE_ACC_NUMBER")
+)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{username}] Character. IG account username. Defaults to `IG\_SERVICE\_USERNAME` environment variable.
+
+\item[\code{password}] Character. IG account password. Defaults to `IG\_SERVICE\_PASSWORD` environment variable.
+
+\item[\code{api\_key}] Character. IG API key. Defaults to `IG\_SERVICE\_API\_KEY` environment variable.
+
+\item[\code{acc\_type}] Character. Account type, either "DEMO" or "LIVE". Defaults to "DEMO".
+
+\item[\code{acc\_number}] Character. Optional account number. Defaults to `IG\_SERVICE\_ACC\_NUMBER` or NULL.
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+A list containing:
+\begin{itemize}
+
+\item{} \code{cst}: Client session token.
+\item{} \code{security}: Security token (X-SECURITY-TOKEN).
+\item{} \code{base\_url}: Base URL for API requests (DEMO or LIVE).
+\item{} \code{api\_key}: API key used for authentication.
+\item{} \code{acc\_type}: Account type ("DEMO" or "LIVE").
+\item{} \code{acc\_number}: Account number (or NULL if not provided).
+
+\end{itemize}
+
+\end{Value}
+%
+\begin{Examples}
+\begin{ExampleCode}
+## Not run: 
+# Using environment variables
+Sys.setenv(IG_SERVICE_USERNAME = "your_username")
+Sys.setenv(IG_SERVICE_PASSWORD = "your_password")
+Sys.setenv(IG_SERVICE_API_KEY = "your_api_key")
+Sys.setenv(IG_SERVICE_ACC_NUMBER = "ABC123")
+Sys.setenv(IG_SERVICE_ACC_TYPE = "DEMO")
+auth <- ig_auth()
+
+# Using explicit arguments
+auth <- ig_auth(
+  username = "your_username",
+  password = "your_password",
+  api_key = "your_api_key",
+  acc_type = "DEMO",
+  acc_number = "ABC123"
+)
+
+## End(Not run)
+
+\end{ExampleCode}
+\end{Examples}
+\HeaderA{ig\_close\_session}{Close session}{ig.Rul.close.Rul.session}
+\aliasA{ig\_logout}{ig\_close\_session}{ig.Rul.logout}
+%
+\begin{Description}
+Closes the authenticated IG API session.
+
+Alias for `ig\_close\_session()`.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+ig_close_session(auth, mock_response = NULL)
+
+ig_logout(auth, mock_response = NULL)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{auth}] List. Authentication details from `ig\_auth()`, including `cst`, `security`, `base\_url`, `api\_key`, and `acc\_number`.
+
+\item[\code{mock\_response}] Logical. Optional mock response for testing (returns `TRUE` if provided). Defaults to `NULL`.
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+Logical `TRUE` if the session was closed successfully.
+\end{Value}
+%
+\begin{Examples}
+\begin{ExampleCode}
+## Not run: 
+# Authenticate and close session
+auth <- ig_auth(
+  username = "your_username",
+  password = "your_password",
+  api_key = "your_api_key",
+  acc_type = "DEMO",
+  acc_number = "ABC123"
+)
+ig_close_session(auth)
+
+# Using mock response for testing
+ig_close_session(auth, mock_response = TRUE)
+
+## End(Not run)
+
+\end{ExampleCode}
+\end{Examples}
+\HeaderA{ig\_execute\_trade}{Execute a trade (place OTC position)}{ig.Rul.execute.Rul.trade}
+%
+\begin{Description}
+Places a market trade (BUY/SELL) for a specified market epic. For testing, use `mock\_response` to avoid network calls.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+ig_execute_trade(
+  epic,
+  direction,
+  size,
+  auth,
+  limit = NULL,
+  stop = NULL,
+  mock_response = NULL
+)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{epic}] Character. Market epic (e.g., "CS.D.USDCHF.CFD.IP").
+
+\item[\code{direction}] Character. Trade direction, either "BUY" or "SELL".
+
+\item[\code{size}] Numeric. Trade size (units).
+
+\item[\code{auth}] List. Authentication details from `ig\_auth()`, including `cst`, `security`, `base\_url`, `api\_key`, and `acc\_number`.
+
+\item[\code{limit}] Numeric. Optional limit price for the trade.
+
+\item[\code{stop}] Numeric. Optional stop price for the trade.
+
+\item[\code{mock\_response}] List or data frame. Optional mock response for testing, bypassing the API call.
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+A tibble with trade confirmation details, including columns like `dealId`, `dealReference`, `status`, and others as returned by the IG API `/positions/otc` endpoint.
+\end{Value}
+%
+\begin{Examples}
+\begin{ExampleCode}
+## Not run: 
+# Authenticate and execute a trade
+auth <- ig_auth(
+  username = "your_username",
+  password = "your_password",
+  api_key = "your_api_key",
+  acc_type = "DEMO",
+  acc_number = "ABC123"
+)
+res <- ig_execute_trade("CS.D.USDCHF.CFD.IP", "BUY", 1.0, auth, limit = 0.855, stop = 0.845)
+print(res)
+
+# Using mock response for testing
+mock_response <- data.frame(
+  dealId = "DIXXXX",
+  dealReference = "REF123",
+  status = "OPEN"
+)
+res <- ig_execute_trade("CS.D.USDCHF.CFD.IP", "BUY", 1.0, auth, mock_response = mock_response)
+
+## End(Not run)
+
+\end{ExampleCode}
+\end{Examples}
+\HeaderA{ig\_get\_accounts}{Retrieve IG account details}{ig.Rul.get.Rul.accounts}
+%
+\begin{Description}
+Fetches details of IG accounts associated with the authenticated session.
+Returns a tibble containing account information such as account ID, name, balance, and status.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+ig_get_accounts(auth, mock_response = NULL)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{auth}] List. Authentication details from `ig\_auth()`, including `cst`, `security`, `base\_url`, `api\_key`, and `acc\_number`.
+
+\item[\code{mock\_response}] List or data frame. Optional mock response for testing, bypassing the API call.
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+A tibble with columns including `accountId`, `accountName`, `balance`, `currency`, and others as returned by the IG API `/accounts` endpoint.
+\end{Value}
+%
+\begin{Examples}
+\begin{ExampleCode}
+## Not run: 
+# Authenticate and get accounts
+auth <- ig_auth(
+  username = "your_username",
+  password = "your_password",
+  api_key = "your_api_key",
+  acc_type = "DEMO",
+  acc_number = "ABC123"
+)
+accounts <- ig_get_accounts(auth)
+print(accounts)
+
+# Using mock response for testing
+mock_response <- data.frame(
+  accountId = "ABC123",
+  accountName = "Demo Account",
+  balance.balance = 10000,
+  currency = "SEK"
+)
+accounts <- ig_get_accounts(auth, mock_response = mock_response)
+
+## End(Not run)
+
+\end{ExampleCode}
+\end{Examples}
+\HeaderA{ig\_get\_historical}{Get historical prices}{ig.Rul.get.Rul.historical}
+%
+\begin{Description}
+Fetches historical prices for a market epic between specified dates at a given resolution.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+ig_get_historical(
+  epic,
+  from = NULL,
+  to = NULL,
+  resolution = "D",
+  auth,
+  mock_response = NULL
+)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{epic}] Character. Market epic (e.g., "CS.D.USDCHF.CFD.IP").
+
+\item[\code{from}] Character or Date. Start datetime or date (e.g., "2020-01-01"). Optional.
+
+\item[\code{to}] Character or Date. End datetime or date (e.g., "2020-12-31"). Optional.
+
+\item[\code{resolution}] Character. Resolution code (e.g., "D" for daily, "H" for hourly). Defaults to "D".
+
+\item[\code{auth}] List. Authentication details from `ig\_auth()`, including `cst`, `security`, `base\_url`, `api\_key`, and `acc\_number`.
+
+\item[\code{mock\_response}] List or data frame. Optional mock response for testing, bypassing the API call.
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+A tibble with historical OHLC data, including columns like `snapshotTime`, `openPrice`, `highPrice`, `lowPrice`, `closePrice`, and others as returned by the IG API `/prices/\{epic\}` endpoint.
+\end{Value}
+%
+\begin{Examples}
+\begin{ExampleCode}
+## Not run: 
+# Authenticate and get historical prices
+auth <- ig_auth(
+  username = "your_username",
+  password = "your_password",
+  api_key = "your_api_key",
+  acc_type = "DEMO",
+  acc_number = "ABC123"
+)
+hist <- ig_get_historical("CS.D.USDCHF.CFD.IP", "2020-01-01", "2020-12-31", "D", auth)
+print(hist)
+
+# Using mock response for testing
+mock_response <- data.frame(
+  snapshotTime = "2020/01/01 00:00:00",
+  openPrice = 0.970,
+  highPrice = 0.975,
+  lowPrice = 0.965,
+  closePrice = 0.971
+)
+hist <- ig_get_historical("CS.D.USDCHF.CFD.IP", 
+  "2020-01-01", 
+  "2020-12-31",
+  "D", 
+  auth, 
+  mock_response = mock_response)
+
+## End(Not run)
+
+\end{ExampleCode}
+\end{Examples}
+\HeaderA{ig\_get\_options}{Get options/derivative positions}{ig.Rul.get.Rul.options}
+%
+\begin{Description}
+Retrieves positions filtered for options/derivatives from the IG API. Returns a tibble with position details.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+ig_get_options(auth, mock_response = NULL)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{auth}] List. Authentication details from `ig\_auth()`, including `cst`, `security`, `base\_url`, `api\_key`, and `acc\_number`.
+
+\item[\code{mock\_response}] List or data frame. Optional mock response for testing, bypassing the API call.
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+A tibble with options/derivative position details, including columns like `dealId`, `size`, `direction`, `instrumentType`, and others as returned by the IG API `/positions` endpoint. If `instrumentType` is available, filters for "OPTION", "DERIVATIVE", or "OPTION\_CONTRACT"; otherwise, returns all positions.
+\end{Value}
+%
+\begin{Examples}
+\begin{ExampleCode}
+## Not run: 
+# Authenticate and get options positions
+auth <- ig_auth(
+  username = "your_username",
+  password = "your_password",
+  api_key = "your_api_key",
+  acc_type = "DEMO",
+  acc_number = "ABC123"
+)
+options <- ig_get_options(auth)
+print(options)
+
+# Using mock response for testing
+mock_response <- data.frame(
+  dealId = "DIXXXX",
+  size = 1.5,
+  direction = "BUY",
+  instrumentType = "OPTION"
+)
+options <- ig_get_options(auth, mock_response = mock_response)
+
+## End(Not run)
+
+\end{ExampleCode}
+\end{Examples}
+\HeaderA{ig\_get\_price}{Get current price for a market}{ig.Rul.get.Rul.price}
+%
+\begin{Description}
+Fetches current price(s) for the given market epic from the IG API.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+ig_get_price(epic, auth, mock_response = NULL)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{epic}] Character. Market epic (e.g., "CS.D.USDCHF.CFD.IP").
+
+\item[\code{auth}] List. Authentication details from `ig\_auth()`, including `cst`, `security`, `base\_url`, `api\_key`, and `acc\_number`.
+
+\item[\code{mock\_response}] List or data frame. Optional mock response for testing, bypassing the API call.
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+A tibble with price information, including columns like `snapshotTime`, `openPrice`, `closePrice`, `highPrice`, `lowPrice`, and others as returned by the IG API `/prices/\{epic\}` endpoint.
+\end{Value}
+%
+\begin{Examples}
+\begin{ExampleCode}
+## Not run: 
+# Authenticate and get price
+auth <- ig_auth(
+  username = "your_username",
+  password = "your_password",
+  api_key = "your_api_key",
+  acc_type = "DEMO",
+  acc_number = "ABC123"
+)
+price <- ig_get_price("CS.D.USDCHF.CFD.IP", auth)
+print(price)
+
+# Using mock response for testing
+mock_response <- data.frame(
+  snapshotTime = "2025/09/23 10:00:00",
+  openPrice = 0.850,
+  closePrice = 0.851,
+  highPrice = 0.852,
+  lowPrice = 0.849
+)
+price <- ig_get_price("CS.D.USDCHF.CFD.IP", auth, mock_response = mock_response)
+
+## End(Not run)
+
+\end{ExampleCode}
+\end{Examples}
+\HeaderA{ig\_search\_markets}{Search markets}{ig.Rul.search.Rul.markets}
+%
+\begin{Description}
+Search markets by text query. Returns a tibble of matching markets from the IG API.
+\end{Description}
+%
+\begin{Usage}
+\begin{verbatim}
+ig_search_markets(query, auth, mock_response = NULL)
+\end{verbatim}
+\end{Usage}
+%
+\begin{Arguments}
+\begin{ldescription}
+\item[\code{query}] Character. Search string for markets (e.g., "USD/CHF").
+
+\item[\code{auth}] List. Authentication details from `ig\_auth()`, including `cst`, `security`, `base\_url`, `api\_key`, and `acc\_number`.
+
+\item[\code{mock\_response}] List or data frame. Optional mock response for testing, bypassing the API call.
+\end{ldescription}
+\end{Arguments}
+%
+\begin{Value}
+A tibble with market information, including columns like `epic`, `instrumentName`, `marketStatus`, and others as returned by the IG API `/markets` endpoint.
+\end{Value}
+%
+\begin{Examples}
+\begin{ExampleCode}
+## Not run: 
+# Authenticate and search markets
+auth <- ig_auth(
+  username = "your_username",
+  password = "your_password",
+  api_key = "your_api_key",
+  acc_type = "DEMO",
+  acc_number = "ABC123"
+)
+markets <- ig_search_markets("USD/CHF", auth)
+print(markets)
+
+# Using mock response for testing
+mock_response <- data.frame(
+  epic = "CS.D.USDCHF.MINI.IP",
+  instrumentName = "USD/CHF Mini",
+  marketStatus = "OPEN"
+)
+markets <- ig_search_markets("USD/CHF", auth, mock_response = mock_response)
+
+## End(Not run)
+
+\end{ExampleCode}
+\end{Examples}
+\printindex{}
+\end{document}

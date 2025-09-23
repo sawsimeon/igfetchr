@@ -1,0 +1,8 @@
+ig_auth                 Authenticate with the IG API
+ig_close_session        Close session
+ig_execute_trade        Execute a trade (place OTC position)
+ig_get_accounts         Retrieve IG account details
+ig_get_historical       Get historical prices
+ig_get_options          Get options/derivative positions
+ig_get_price            Get current price for a market
+ig_search_markets       Search markets

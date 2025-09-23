@@ -1,0 +1,368 @@
+
+R version 4.4.2 (2024-10-31) -- "Pile of Leaves"
+Copyright (C) 2024 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin20
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> pkgname <- "igfetchr"
+> source(file.path(R.home("share"), "R", "examples-header.R"))
+> options(warn = 1)
+> base::assign(".ExTimings", "igfetchr-Ex.timings", pos = 'CheckExEnv')
+> base::cat("name\tuser\tsystem\telapsed\n", file=base::get(".ExTimings", pos = 'CheckExEnv'))
+> base::assign(".format_ptime",
++ function(x) {
++   if(!is.na(x[4L])) x[1L] <- x[1L] + x[4L]
++   if(!is.na(x[5L])) x[2L] <- x[2L] + x[5L]
++   options(OutDec = '.')
++   format(x[1L:3L], digits = 7L)
++ },
++ pos = 'CheckExEnv')
+> 
+> ### * </HEADER>
+> library('igfetchr')
+> 
+> base::assign(".oldSearch", base::search(), pos = 'CheckExEnv')
+> base::assign(".old_wd", base::getwd(), pos = 'CheckExEnv')
+> cleanEx()
+> nameEx("ig_auth")
+> ### * ig_auth
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: ig_auth
+> ### Title: Authenticate with the IG API
+> ### Aliases: ig_auth
+> 
+> ### ** Examples
+> 
+> ## Not run: 
+> ##D # Using environment variables
+> ##D Sys.setenv(IG_SERVICE_USERNAME = "your_username")
+> ##D Sys.setenv(IG_SERVICE_PASSWORD = "your_password")
+> ##D Sys.setenv(IG_SERVICE_API_KEY = "your_api_key")
+> ##D Sys.setenv(IG_SERVICE_ACC_NUMBER = "ABC123")
+> ##D Sys.setenv(IG_SERVICE_ACC_TYPE = "DEMO")
+> ##D auth <- ig_auth()
+> ##D 
+> ##D # Using explicit arguments
+> ##D auth <- ig_auth(
+> ##D   username = "your_username",
+> ##D   password = "your_password",
+> ##D   api_key = "your_api_key",
+> ##D   acc_type = "DEMO",
+> ##D   acc_number = "ABC123"
+> ##D )
+> ## End(Not run)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("ig_auth", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("ig_close_session")
+> ### * ig_close_session
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: ig_close_session
+> ### Title: Close session
+> ### Aliases: ig_close_session ig_logout
+> 
+> ### ** Examples
+> 
+> ## Not run: 
+> ##D # Authenticate and close session
+> ##D auth <- ig_auth(
+> ##D   username = "your_username",
+> ##D   password = "your_password",
+> ##D   api_key = "your_api_key",
+> ##D   acc_type = "DEMO",
+> ##D   acc_number = "ABC123"
+> ##D )
+> ##D ig_close_session(auth)
+> ##D 
+> ##D # Using mock response for testing
+> ##D ig_close_session(auth, mock_response = TRUE)
+> ## End(Not run)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("ig_close_session", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("ig_execute_trade")
+> ### * ig_execute_trade
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: ig_execute_trade
+> ### Title: Execute a trade (place OTC position)
+> ### Aliases: ig_execute_trade
+> 
+> ### ** Examples
+> 
+> ## Not run: 
+> ##D # Authenticate and execute a trade
+> ##D auth <- ig_auth(
+> ##D   username = "your_username",
+> ##D   password = "your_password",
+> ##D   api_key = "your_api_key",
+> ##D   acc_type = "DEMO",
+> ##D   acc_number = "ABC123"
+> ##D )
+> ##D res <- ig_execute_trade("CS.D.USDCHF.CFD.IP", "BUY", 1.0, auth, limit = 0.855, stop = 0.845)
+> ##D print(res)
+> ##D 
+> ##D # Using mock response for testing
+> ##D mock_response <- data.frame(
+> ##D   dealId = "DIXXXX",
+> ##D   dealReference = "REF123",
+> ##D   status = "OPEN"
+> ##D )
+> ##D res <- ig_execute_trade("CS.D.USDCHF.CFD.IP", "BUY", 1.0, auth, mock_response = mock_response)
+> ## End(Not run)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("ig_execute_trade", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("ig_get_accounts")
+> ### * ig_get_accounts
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: ig_get_accounts
+> ### Title: Retrieve IG account details
+> ### Aliases: ig_get_accounts
+> 
+> ### ** Examples
+> 
+> ## Not run: 
+> ##D # Authenticate and get accounts
+> ##D auth <- ig_auth(
+> ##D   username = "your_username",
+> ##D   password = "your_password",
+> ##D   api_key = "your_api_key",
+> ##D   acc_type = "DEMO",
+> ##D   acc_number = "ABC123"
+> ##D )
+> ##D accounts <- ig_get_accounts(auth)
+> ##D print(accounts)
+> ##D 
+> ##D # Using mock response for testing
+> ##D mock_response <- data.frame(
+> ##D   accountId = "ABC123",
+> ##D   accountName = "Demo Account",
+> ##D   balance.balance = 10000,
+> ##D   currency = "SEK"
+> ##D )
+> ##D accounts <- ig_get_accounts(auth, mock_response = mock_response)
+> ## End(Not run)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("ig_get_accounts", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("ig_get_historical")
+> ### * ig_get_historical
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: ig_get_historical
+> ### Title: Get historical prices
+> ### Aliases: ig_get_historical
+> 
+> ### ** Examples
+> 
+> ## Not run: 
+> ##D # Authenticate and get historical prices
+> ##D auth <- ig_auth(
+> ##D   username = "your_username",
+> ##D   password = "your_password",
+> ##D   api_key = "your_api_key",
+> ##D   acc_type = "DEMO",
+> ##D   acc_number = "ABC123"
+> ##D )
+> ##D hist <- ig_get_historical("CS.D.USDCHF.CFD.IP", "2020-01-01", "2020-12-31", "D", auth)
+> ##D print(hist)
+> ##D 
+> ##D # Using mock response for testing
+> ##D mock_response <- data.frame(
+> ##D   snapshotTime = "2020/01/01 00:00:00",
+> ##D   openPrice = 0.970,
+> ##D   highPrice = 0.975,
+> ##D   lowPrice = 0.965,
+> ##D   closePrice = 0.971
+> ##D )
+> ##D hist <- ig_get_historical("CS.D.USDCHF.CFD.IP", 
+> ##D   "2020-01-01", 
+> ##D   "2020-12-31",
+> ##D   "D", 
+> ##D   auth, 
+> ##D   mock_response = mock_response)
+> ## End(Not run)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("ig_get_historical", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("ig_get_options")
+> ### * ig_get_options
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: ig_get_options
+> ### Title: Get options/derivative positions
+> ### Aliases: ig_get_options
+> 
+> ### ** Examples
+> 
+> ## Not run: 
+> ##D # Authenticate and get options positions
+> ##D auth <- ig_auth(
+> ##D   username = "your_username",
+> ##D   password = "your_password",
+> ##D   api_key = "your_api_key",
+> ##D   acc_type = "DEMO",
+> ##D   acc_number = "ABC123"
+> ##D )
+> ##D options <- ig_get_options(auth)
+> ##D print(options)
+> ##D 
+> ##D # Using mock response for testing
+> ##D mock_response <- data.frame(
+> ##D   dealId = "DIXXXX",
+> ##D   size = 1.5,
+> ##D   direction = "BUY",
+> ##D   instrumentType = "OPTION"
+> ##D )
+> ##D options <- ig_get_options(auth, mock_response = mock_response)
+> ## End(Not run)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("ig_get_options", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("ig_get_price")
+> ### * ig_get_price
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: ig_get_price
+> ### Title: Get current price for a market
+> ### Aliases: ig_get_price
+> 
+> ### ** Examples
+> 
+> ## Not run: 
+> ##D # Authenticate and get price
+> ##D auth <- ig_auth(
+> ##D   username = "your_username",
+> ##D   password = "your_password",
+> ##D   api_key = "your_api_key",
+> ##D   acc_type = "DEMO",
+> ##D   acc_number = "ABC123"
+> ##D )
+> ##D price <- ig_get_price("CS.D.USDCHF.CFD.IP", auth)
+> ##D print(price)
+> ##D 
+> ##D # Using mock response for testing
+> ##D mock_response <- data.frame(
+> ##D   snapshotTime = "2025/09/23 10:00:00",
+> ##D   openPrice = 0.850,
+> ##D   closePrice = 0.851,
+> ##D   highPrice = 0.852,
+> ##D   lowPrice = 0.849
+> ##D )
+> ##D price <- ig_get_price("CS.D.USDCHF.CFD.IP", auth, mock_response = mock_response)
+> ## End(Not run)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("ig_get_price", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> cleanEx()
+> nameEx("ig_search_markets")
+> ### * ig_search_markets
+> 
+> flush(stderr()); flush(stdout())
+> 
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: ig_search_markets
+> ### Title: Search markets
+> ### Aliases: ig_search_markets
+> 
+> ### ** Examples
+> 
+> ## Not run: 
+> ##D # Authenticate and search markets
+> ##D auth <- ig_auth(
+> ##D   username = "your_username",
+> ##D   password = "your_password",
+> ##D   api_key = "your_api_key",
+> ##D   acc_type = "DEMO",
+> ##D   acc_number = "ABC123"
+> ##D )
+> ##D markets <- ig_search_markets("USD/CHF", auth)
+> ##D print(markets)
+> ##D 
+> ##D # Using mock response for testing
+> ##D mock_response <- data.frame(
+> ##D   epic = "CS.D.USDCHF.MINI.IP",
+> ##D   instrumentName = "USD/CHF Mini",
+> ##D   marketStatus = "OPEN"
+> ##D )
+> ##D markets <- ig_search_markets("USD/CHF", auth, mock_response = mock_response)
+> ## End(Not run)
+> 
+> 
+> 
+> 
+> base::assign(".dptime", (proc.time() - get(".ptime", pos = "CheckExEnv")), pos = "CheckExEnv")
+> base::cat("ig_search_markets", base::get(".format_ptime", pos = 'CheckExEnv')(get(".dptime", pos = "CheckExEnv")), "\n", file=base::get(".ExTimings", pos = 'CheckExEnv'), append=TRUE, sep="\t")
+> ### * <FOOTER>
+> ###
+> cleanEx()
+> options(digits = 7L)
+> base::cat("Time elapsed: ", proc.time() - base::get("ptime", pos = 'CheckExEnv'),"\n")
+Time elapsed:  0.38 0.024 0.654 0 0 
+> grDevices::dev.off()
+null device 
+          1 
+> ###
+> ### Local variables: ***
+> ### mode: outline-minor ***
+> ### outline-regexp: "\\(> \\)?### [*]+" ***
+> ### End: ***
+> quit('no')

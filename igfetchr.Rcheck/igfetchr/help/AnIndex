@@ -1,0 +1,11 @@
+igfetchr-package	igfetchr-package
+.ig_request	dot-ig_request
+ig_auth	ig_auth
+ig_close_session	ig_close_session
+ig_execute_trade	ig_execute_trade
+ig_get_accounts	ig_get_accounts
+ig_get_historical	ig_get_historical
+ig_get_options	ig_get_options
+ig_get_price	ig_get_price
+ig_logout	ig_close_session
+ig_search_markets	ig_search_markets
