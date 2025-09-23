@@ -26,7 +26,7 @@ auth <- igfetchr::ig_auth(
   password = "demo_pass",
   api_key = "demo_api_key",
   acc_type = "DEMO",
-  acc_number = "Z5AMR1"
+  acc_number = "ABC123"
 )
 
 # Use mock_response to simulate endpoints
@@ -60,7 +60,7 @@ Sys.setenv(IG_SERVICE_USERNAME = "your_username")
 Sys.setenv(IG_SERVICE_PASSWORD = "your_password")
 Sys.setenv(IG_SERVICE_API_KEY = "your_api_key")
 Sys.setenv(IG_SERVICE_ACC_TYPE = "DEMO")
-Sys.setenv(IG_SERVICE_ACC_NUMBER = "Z5AMR1")
+Sys.setenv(IG_SERVICE_ACC_NUMBER = "ABC123")
 
 auth <- igfetchr::ig_auth()
 hist <- igfetchr::ig_get_historical(
