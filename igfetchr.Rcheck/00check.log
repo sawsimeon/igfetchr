@@ -11,17 +11,16 @@
 * checking extension type ... Package
 * this is package ‘igfetchr’ version ‘0.1.0’
 * package encoding: UTF-8
-* checking CRAN incoming feasibility ... [2s/130s] NOTE
+* checking CRAN incoming feasibility ... [3s/127s] NOTE
 Maintainer: ‘Saw Simeon <saw.s@ku.th>’
 
 License components with restrictions and base license permitting such:
   MIT + file LICENSE
 File 'LICENSE':
-  License: MIT + file LICENSE
   MIT License
+  
   YEAR: 2025
   COPYRIGHT HOLDER: Saw Simeon
-  
   
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -47,7 +46,7 @@ Found the following (possibly) invalid URLs:
           man/igfetchr-package.Rd
     Status: Error
     Message: libcurl error code 7:
-      	Failed to connect to github.com port 443 after 4015 ms: Couldn't connect to server
+      	Failed to connect to github.com port 443 after 4020 ms: Couldn't connect to server
   URL: https://github.com/sawsimeon/igfetchr/issues
     From: DESCRIPTION
           man/igfetchr-package.Rd
@@ -77,8 +76,8 @@ Author field differs from that derived from Authors@R
 
 * checking top-level files ... NOTE
 Files ‘README.md’ or ‘NEWS.md’ cannot be checked without ‘pandoc’ being installed.
-Non-standard files/directories found at top level:
-  ‘TODO.md’ ‘cran-comments.md’
+Non-standard file/directory found at top level:
+  ‘cran-comments.md’
 * checking for left-over files ... OK
 * checking index information ... OK
 * checking package subdirectories ... OK
