@@ -41,6 +41,10 @@ jobs:
       - name: Install TinyTeX
         uses: r-lib/actions/setup-tinytex@v2
 
+      - name: Install tinytex R package
+        run: |
+          Rscript -e 'install.packages("tinytex")'
+
       - name: Install LaTeX packages
         run: |
           Rscript -e 'tinytex::tlmgr_install("inconsolata")'
