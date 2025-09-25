@@ -3,7 +3,6 @@ Type: Package
 Title: Simplified Access to IG Trading API
 Version: 0.1.0
 Authors@R: person("Saw", "Simeon", email = "saw.s@ku.th", role = c("aut", "cre"))
-Author: Saw Simeon <saw.s@ku.th>
 Maintainer: Saw Simeon <saw.s@ku.th>
 Description: Provides functions to fetch market data, search historical prices, execute trades, and get account details from the IG Trading REST API (labs.ig.com). Returns tidy tibbles for easy analysis. Trading CFDs and spread bets carry a high risk of losing money; this package is is not financial advice.
 License: GPL-3
