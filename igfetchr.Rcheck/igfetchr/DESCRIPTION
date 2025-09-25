@@ -3,10 +3,9 @@ Type: Package
 Title: Simplified Access to IG Trading API
 Version: 0.1.0
 Authors@R: person("Saw", "Simeon", email = "saw.s@ku.th", role = c("aut", "cre"))
-Author: Saw Simeon <saw.s@ku.th>
 Maintainer: Saw Simeon <saw.s@ku.th>
 Description: Provides functions to fetch market data, search historical prices, execute trades, and get account details from the IG Trading REST API (labs.ig.com). Returns tidy tibbles for easy analysis. Trading CFDs and spread bets carry a high risk of losing money; this package is is not financial advice.
-License: MIT + file LICENSE
+License: GPL-3
 Encoding: UTF-8
 Imports: httr, jsonlite, tibble
 Suggests: testthat (>= 3.0.0), knitr, rmarkdown, lubridate, httptest
@@ -15,5 +14,6 @@ URL: https://github.com/sawsimeon/igfetchr
 BugReports: https://github.com/sawsimeon/igfetchr/issues
 RoxygenNote: 7.3.3
 NeedsCompilation: no
-Packaged: 2025-09-23 21:29:10 UTC; sawsimeon
-Built: R 4.4.2; ; 2025-09-23 21:34:54 UTC; unix
+Packaged: 2025-09-24 21:43:13 UTC; sawsimeon
+Author: Saw Simeon [aut, cre]
+Built: R 4.4.2; ; 2025-09-24 21:43:43 UTC; unix

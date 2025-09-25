@@ -4,6 +4,7 @@ igfetchr is a lightweight R wrapper for the IG Trading REST API (labs.ig.com). I
 
 Important: Trading CFDs and spread bets carries a high risk of losing money. This package is not financial advice.
 
+
 ## Installation
 
 Install the package from GitHub (development):
