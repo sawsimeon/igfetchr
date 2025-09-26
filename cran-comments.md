@@ -17,5 +17,7 @@ Notes for CRAN maintainers:
 - The package includes a clear risk disclaimer in DESCRIPTION, package-level docs, and function documentation: "Trading CFDs and spread bets carries a high risk of losing money. This package is for data access and is not financial advice."
 - Suggested packages (testthat, httptest, lubridate) are in Suggests and not required at runtime.
 - Note about future file timestamps: This is a system issue (unable to verify current time) and does not affect package functionality.
+- HTML validation NOTEs: Due to R 4.4.2’s Rd2HTML generating <main> tags and missing attributes, not package-specific.
+- Unable to verify current time NOTE: System issue, not package-related.
 
 If you need any additional platform logs or further assurances about network-free checks, please let me know; I can provide reproducible logs from rhub or win-builder on request.
