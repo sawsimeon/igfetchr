@@ -246,13 +246,13 @@ ig_search_markets <- function(query, auth, mock_response = NULL) {
 
 #' Get current price for a market
 #'
-#' Fetches current price(s) for the given market epic from the IG API.
+#' Fetches current price(s) for the given market epic from the IG API using the `/markets/{epic}` endpoint.
 #'
 #' @param epic Character. Market epic (e.g., "CS.D.USDCHF.CFD.IP").
 #' @param auth List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.
 #' @param mock_response List or data frame. Optional mock response for testing, bypassing the API call.
 #'
-#' @return A tibble with price information, including columns like `snapshotTime`, `openPrice`, `closePrice`, `highPrice`, `lowPrice`, and others as returned by the IG API `/prices/\{epic\}` endpoint.
+#' @return A tibble with price information, including columns like `marketStatus`, `bid`, `offer`, `high`, `low`, `updateTime`, and others as returned by the IG API `/markets/{epic}` endpoint.
 #'
 #' @examples
 #' \dontrun{
@@ -269,21 +269,24 @@ ig_search_markets <- function(query, auth, mock_response = NULL) {
 #'
 #' # Using mock response for testing
 #' mock_response <- data.frame(
-#'   snapshotTime = "2025/09/23 10:00:00",
-#'   openPrice = 0.850,
-#'   closePrice = 0.851,
-#'   highPrice = 0.852,
-#'   lowPrice = 0.849
+#'   marketStatus = "TRADEABLE",
+#'   bid = 0.798,
+#'   offer = 0.798,
+#'   high = 0.801,
+#'   low = 0.797,
+#'   updateTime = "2025/09/26 21:58:57"
 #' )
 #' price <- ig_get_price("CS.D.USDCHF.CFD.IP", auth, mock_response = mock_response)
 #' }
 #'
 #' @export
 ig_get_price <- function(epic, auth, mock_response = NULL) {
-  stopifnot(is.character(epic))
-  path <- paste0("/prices/", utils::URLencode(epic, reserved = TRUE))
+  stopifnot(is.character(epic), nchar(epic) > 0)
   
-  # Call .ig_request() without api_key parameter
+  # Construct path for current prices
+  path <- paste0("/markets/", utils::URLencode(epic, reserved = TRUE))
+  
+  # Call .ig_request()
   res <- .ig_request(
     path = path,
     auth = auth,
@@ -295,18 +298,18 @@ ig_get_price <- function(epic, auth, mock_response = NULL) {
   tibble::as_tibble(res)
 }
 
-#' Get historical prices
+#' Get historical prices for a market
 #'
-#' Fetches historical prices for a market epic between specified dates at a given resolution.
+#' Fetches historical prices for a market epic between specified dates at a given resolution from the IG API.
 #'
-#' @param epic Character. Market epic (e.g., "CS.D.USDCHF.CFD.IP").
-#' @param from Character or Date. Start datetime or date (e.g., "2020-01-01"). Optional.
-#' @param to Character or Date. End datetime or date (e.g., "2020-12-31"). Optional.
-#' @param resolution Character. Resolution code (e.g., "D" for daily, "H" for hourly). Defaults to "D".
+#' @param epic Character. Market epic (e.g., "CS.D.USDCHF.MINI.IP").
+#' @param from Character or Date. Start datetime (e.g., "2025-09-26T00:00:00.000+0000"). Required.
+#' @param to Character or Date. End datetime (e.g., "2025-09-26T23:59:59.999+0000"). Required.
+#' @param resolution Character. Resolution code (e.g., "MINUTE", "HOUR", "DAY"). Defaults to "DAY".
 #' @param auth List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.
 #' @param mock_response List or data frame. Optional mock response for testing, bypassing the API call.
 #'
-#' @return A tibble with historical OHLC data, including columns like `snapshotTime`, `openPrice`, `highPrice`, `lowPrice`, `closePrice`, and others as returned by the IG API `/prices/\{epic\}` endpoint.
+#' @return A tibble with historical OHLC data, including columns like `snapshotTime`, `openPrice`, `highPrice`, `lowPrice`, `closePrice`, and others as returned by the IG API `/prices/{epic}/{resolution}/{from}/{to}` endpoint.
 #'
 #' @examples
 #' \dontrun{
@@ -318,39 +321,58 @@ ig_get_price <- function(epic, auth, mock_response = NULL) {
 #'   acc_type = "DEMO",
 #'   acc_number = "ABC123"
 #' )
-#' hist <- ig_get_historical("CS.D.USDCHF.CFD.IP", "2020-01-01", "2020-12-31", "D", auth)
+#' hist <- ig_get_historical(
+#'   "CS.D.USDCHF.MINI.IP",
+#'   from = "2025-09-26T00:00:00.000+0000",
+#'   to = "2025-09-26T23:59:59.999+0000",
+#'   resolution = "MINUTE",
+#'   auth
+#' )
 #' print(hist)
 #'
 #' # Using mock response for testing
 #' mock_response <- data.frame(
-#'   snapshotTime = "2020/01/01 00:00:00",
-#'   openPrice = 0.970,
-#'   highPrice = 0.975,
-#'   lowPrice = 0.965,
-#'   closePrice = 0.971
+#'   snapshotTime = "2025/09/26 00:00:00",
+#'   openPrice = 0.798,
+#'   highPrice = 0.801,
+#'   lowPrice = 0.797,
+#'   closePrice = 0.798
 #' )
-#' hist <- ig_get_historical("CS.D.USDCHF.CFD.IP", 
-#'   "2020-01-01", 
-#'   "2020-12-31",
-#'   "D", 
-#'   auth, 
-#'   mock_response = mock_response)
+#' hist <- ig_get_historical(
+#'   "CS.D.USDCHF.MINI.IP",
+#'   from = "2025-09-26T00:00:00.000+0000",
+#'   to = "2025-09-26T23:59:59.999+0000",
+#'   resolution = "MINUTE",
+#'   auth,
+#'   mock_response = mock_response
+#' )
 #' }
 #'
 #' @export
-ig_get_historical <- function(epic, from = NULL, to = NULL, resolution = "D", auth, mock_response = NULL) {
-  stopifnot(is.character(epic), is.character(resolution))
-  q <- list(resolution = resolution)
-  if (!is.null(from)) q$from <- as.character(from)
-  if (!is.null(to)) q$to <- as.character(to)
-  path <- paste0("/prices/", utils::URLencode(epic, reserved = TRUE))
+ig_get_historical <- function(epic, from, to, resolution = "DAY", auth, mock_response = NULL) {
+  stopifnot(
+    is.character(epic), nchar(epic) > 0,
+    is.character(resolution), resolution %in% c("SECOND", "MINUTE", "HOUR", "DAY", "WEEK", "MONTH"),
+    is.character(from) || inherits(from, "Date"),
+    is.character(to) || inherits(to, "Date")
+  )
   
-  # Call .ig_request() without api_key parameter
+  # Format dates
+  from <- if (inherits(from, "Date")) format(from, "%Y-%m-%dT00:00:00.000+0000") else from
+  to <- if (inherits(to, "Date")) format(to, "%Y-%m-%dT23:59:59.999+0000") else to
+  
+  # Construct path for historical prices
+  path <- paste0(
+    "/prices/", utils::URLencode(epic, reserved = TRUE), "/",
+    resolution, "/", from, "/", to
+  )
+  
+  # Call .ig_request()
   res <- .ig_request(
     path = path,
     auth = auth,
     method = "GET",
-    query = q,
+    query = list(),
     mock_response = mock_response
   )
   
