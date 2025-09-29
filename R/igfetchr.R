@@ -130,6 +130,15 @@ ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
 .ig_request <- function(path, auth, method = c("GET", "POST", "DELETE"), query = list(), body = NULL, version = NULL, mock_response = NULL) {
   method <- match.arg(method)
   if (!is.null(mock_response)) {
+    if (is.data.frame(mock_response)) {
+      return(tibble::as_tibble(mock_response))
+    }
+    if (is.list(mock_response) && !is.null(mock_response$snapshot) && is.data.frame(mock_response$snapshot)) {
+      return(tibble::as_tibble(mock_response$snapshot))
+    }
+    if (is.list(mock_response) && !is.null(mock_response$prices)) {
+      return(tibble::as_tibble(mock_response$prices))
+    }
     return(tibble::as_tibble(mock_response))
   }
   if (identical(Sys.getenv("IGFETCHR_TESTING"), "true")) {
@@ -144,7 +153,7 @@ ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
 
   url <- paste0(auth$base_url, path)
 
-  # Construct headers in a single call
+  # Construct headers
   headers_list <- list(
     "X-IG-API-KEY" = auth$api_key,
     "CST" = auth$cst %||% "",
@@ -160,7 +169,7 @@ ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
   }
   headers <- do.call(httr::add_headers, headers_list)
 
-  # Execute request with tryCatch
+  # Execute request
   resp <- tryCatch({
     switch(
       method,
@@ -172,7 +181,7 @@ ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
     stop("Failed to execute HTTP request: ", e$message)
   })
 
-  # Verify response is a valid httr response object
+  # Verify response
   if (!inherits(resp, "response")) {
     stop("Invalid response object returned by httr. Check network connection or API availability.")
   }
@@ -185,8 +194,6 @@ ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
 
   content <- httr::content(resp, "text", encoding = "UTF-8")
   json <- jsonlite::fromJSON(content, simplifyVector = TRUE)
-
-  # Handle different response structures
   if (is.data.frame(json)) {
     return(tibble::as_tibble(json))
   }
@@ -200,7 +207,6 @@ ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
         return(tibble::as_tibble(table_elt))
       }
       if (is.list(table_elt)) {
-        # Convert NULL to NA to avoid tibble errors
         table_elt <- lapply(table_elt, function(x) if (is.null(x)) NA else x)
         return(tibble::as_tibble(table_elt))
       }
@@ -332,11 +338,11 @@ ig_get_price <- function(epic, auth, mock_response = NULL) {
 #' Get historical prices for a market
 #'
 #' Fetches historical prices for a market epic between specified dates at a given resolution from the IG API.
-#' Uses the /prices/{epic} endpoint (version 3) with pagination, with a fallback to version 2.
+#' Uses the /prices/{epic}/{resolution}/{startDate}/{endDate} endpoint (version 2) with a fallback to version 3.
 #'
 #' @param epic Character. Market epic (e.g., "CS.D.USDCHF.MINI.IP").
-#' @param from Character or Date. Start date (e.g., "2025-08-01" or "2025-08-01T00:00:00+00:00"). Required.
-#' @param to Character or Date. End date (e.g., "2025-08-26" or "2025-08-26T23:59:59+00:00"). Required.
+#' @param from Character or Date. Start date (e.g., "2025-06-30" or "2025-06-30 00:00:00"). Required.
+#' @param to Character or Date. End date (e.g., "2025-07-25" or "2025-07-25 23:59:59"). Required.
 #' @param resolution Character. Resolution code (e.g., "D", "DAY", "1MIN", "HOUR"). Defaults to "DAY".
 #' @param page_size Integer. Number of data points per page (v3 only). Defaults to 20.
 #' @param auth List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.
@@ -357,26 +363,26 @@ ig_get_price <- function(epic, auth, mock_response = NULL) {
 #' )
 #' hist <- ig_get_historical(
 #'   "CS.D.USDCHF.MINI.IP",
-#'   from = "2025-08-01",
-#'   to = "2025-08-26",
+#'   from = "2025-06-30",
+#'   to = "2025-07-25",
 #'   resolution = "DAY",
 #'   auth
 #' )
 #' print(hist)
 #'
-#' # Using ISO 8601 format
+#' # Using time
 #' hist <- ig_get_historical(
 #'   "CS.D.USDCHF.MINI.IP",
-#'   from = "2025-08-01T00:00:00+00:00",
-#'   to = "2025-08-26T23:59:59+00:00",
+#'   from = "2025-06-30 00:00:00",
+#'   to = "2025-07-25 23:59:59",
 #'   resolution = "DAY",
 #'   auth
 #' )
 #'
-#' # Using mock response for testing
+#' # Using mock response
 #' mock_response <- list(
 #'   prices = data.frame(
-#'     snapshotTime = "2025/08/01 00:00:00",
+#'     snapshotTime = "2025/07/01 00:00:00",
 #'     openPrice = 0.970,
 #'     highPrice = 0.975,
 #'     lowPrice = 0.965,
@@ -386,9 +392,10 @@ ig_get_price <- function(epic, auth, mock_response = NULL) {
 #' )
 #' hist <- ig_get_historical(
 #'   "CS.D.USDCHF.MINI.IP",
-#'   from = "2025-08-01",
-#'   to = "2025-08-26",
+#'   from = "2025-06-30",
+#'   to = "2025-07-25",
 #'   resolution = "DAY",
+#'   page_size = 20,
 #'   auth,
 #'   mock_response = mock_response
 #' )
@@ -405,14 +412,14 @@ ig_get_historical <- function(epic, from, to, resolution = "DAY", page_size = 20
     is.numeric(wait), wait >= 0
   )
   
-  # Validate epic
+  # Validate epic (optional)
   if (is.null(mock_response)) {
     markets <- tryCatch(
       {
         .ig_request("/markets", auth, method = "GET")
       },
       error = function(e) {
-        warning("Failed to fetch markets to validate epic: ", e$message)
+        warning("Failed to fetch markets to validate epic: ", e$message, ". Proceeding without validation.")
         return(NULL)
       }
     )
@@ -421,7 +428,7 @@ ig_get_historical <- function(epic, from, to, resolution = "DAY", page_size = 20
     }
   }
   
-  # Map resolution codes (adapted from Python conv_resol)
+  # Map resolution codes
   resolution_map <- c(
     "1s" = "SECOND",
     "1Min" = "MINUTE", "M" = "MINUTE", "MINUTE" = "MINUTE",
@@ -441,10 +448,10 @@ ig_get_historical <- function(epic, from, to, resolution = "DAY", page_size = 20
   }
   
   # Parse and validate dates
-  from_date <- if (inherits(from, "Date")) from else as.Date(from, tryFormats = c("%Y-%m-%d", "%Y/%m/%d", "%Y-%m-%dT%H:%M:%S%z"))
-  to_date <- if (inherits(to, "Date")) to else as.Date(to, tryFormats = c("%Y-%m-%d", "%Y/%m/%d", "%Y-%m-%dT%H:%M:%S%z"))
+  from_date <- if (inherits(from, "Date")) from else as.POSIXct(from, tryFormats = c("%Y-%m-%d", "%Y/%m/%d", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ"))
+  to_date <- if (inherits(to, "Date")) to else as.POSIXct(to, tryFormats = c("%Y-%m-%d", "%Y/%m/%d", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ"))
   if (is.na(from_date) || is.na(to_date)) {
-    stop("Invalid date format for 'from' or 'to'. Use YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS+00:00.")
+    stop("Invalid date format for 'from' or 'to'. Use YYYY-MM-DD, YYYY/MM/DD HH:MM:SS, or YYYY-MM-DDTHH:MM:SSZ.")
   }
   if (to_date < from_date) {
     stop("'to' date must be after 'from' date.")
@@ -455,109 +462,117 @@ ig_get_historical <- function(epic, from, to, resolution = "DAY", page_size = 20
     warning("Date range exceeds 90 days, which may not be supported in DEMO accounts. Consider a shorter range.")
   }
   # Warn if dates are in the future
-  current_date <- Sys.Date()
+  current_date <- Sys.time()
   if (from_date > current_date || to_date > current_date) {
-    warning("Dates are in the future, which may not be supported in DEMO accounts. Current date: ", current_date)
+    warning("Dates are in the future, which may not be supported in DEMO accounts. Current date: ", format(current_date, "%Y-%m-%d %H:%M:%S"))
   }
   
-  # Convert dates (adapted from Python conv_datetime)
+  # Convert dates
   conv_datetime <- function(dt, version = "2") {
     dt_parsed <- tryCatch({
-      if (inherits(dt, "Date")) {
+      if (inherits(dt, "POSIXt")) {
+        dt
+      } else if (inherits(dt, "Date")) {
         as.POSIXct(dt)
       } else {
-        as.POSIXct(dt, tryFormats = c("%Y-%m-%d", "%Y/%m/%d", "%Y-%m-%dT%H:%M:%S%z"))
+        as.POSIXct(dt, tryFormats = c("%Y-%m-%d", "%Y/%m/%d", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ"))
       }
     }, error = function(e) {
       warning("Date parsing failed, returning original: ", dt)
       return(dt)
     })
     if (inherits(dt_parsed, "character")) return(dt)
-    fmt <- if (version == "1") "%Y:%m:%d-%H:%M:%S" else "%Y/%m/%d %H:%M:%S"
+    fmt <- if (version == "3") "%Y-%m-%dT%H:%M:%SZ" else if (version == "1") "%Y:%m:%d-%H:%M:%S" else "%Y/%m/%d %H:%M:%S"
     format(dt_parsed, fmt)
   }
   
-  # Format dates for v3 and v2
+  # Format dates for v2 and v3
+  from_v2 <- conv_datetime(from_date, version = "2")
+  to_v2 <- conv_datetime(to_date, version = "2")
   from_v3 <- conv_datetime(from_date, version = "3")
   to_v3 <- conv_datetime(to_date, version = "3")
-  from_v2 <- format(from_date, "%Y-%m-%d")
-  to_v2 <- format(to_date, "%Y-%m-%d")
   
-  # Construct path and initial query for v3
-  path <- paste0("/prices/", utils::URLencode(epic, reserved = TRUE))
-  prices <- list()
-  page_number <- 1
-  more_results <- TRUE
-  
-  while (more_results) {
-    query <- list(
-      resolution = resolution,
-      from = from_v3,
-      to = to_v3,
-      pageSize = page_size,
-      pageNumber = page_number
-    )
-    
-    # Call .ig_request() for v3
-    res <- tryCatch(
-      {
-        .ig_request(
-          path = path,
-          auth = auth,
-          method = "GET",
-          query = query,
-          version = "3",
-          mock_response = if (page_number == 1) mock_response else NULL
-        )
-      },
-      error = function(e) {
-        message("v3 API request failed: ", e$message, "\nRequested URL: ", path, " with query: ", paste(names(query), query, sep="=", collapse="&"))
-        # Fallback to v2 endpoint: /prices/{epic}/{resolution}/{startDate}/{endDate}
-        path_v2 <- paste0("/prices/", utils::URLencode(epic, reserved = TRUE), "/", resolution, "/", from_v2, "/", to_v2)
-        message("Trying fallback v2 endpoint: ", path_v2)
-        res_v2 <- tryCatch(
+  # Try v2 endpoint first (aligned with Python)
+  path_v2 <- paste0("/prices/", utils::URLencode(epic, reserved = TRUE), "/", resolution, "/", from_v2, "/", to_v2)
+  res <- tryCatch(
+    {
+      .ig_request(
+        path = path_v2,
+        auth = auth,
+        method = "GET",
+        query = list(),
+        version = "2",
+        mock_response = mock_response
+      )
+    },
+    error = function(e) {
+      message("v2 API request failed: ", e$message, "\nRequested URL: ", path_v2)
+      # Fallback to v3 endpoint
+      path_v3 <- paste0("/prices/", utils::URLencode(epic, reserved = TRUE))
+      query_v3 <- list(
+        resolution = resolution,
+        from = from_v3,
+        to = to_v3,
+        pageSize = page_size,
+        pageNumber = 1
+      )
+      message("Trying fallback v3 endpoint: ", path_v3, " with query: ", paste(names(query_v3), query_v3, sep="=", collapse="&"))
+      prices <- list()
+      page_number <- 1
+      more_results <- TRUE
+      
+      while (more_results) {
+        query_v3$pageNumber <- page_number
+        res_v3 <- tryCatch(
           {
             .ig_request(
-              path = path_v2,
+              path = path_v3,
               auth = auth,
               method = "GET",
-              query = list(),
-              version = "2",
+              query = query_v3,
+              version = "3",
               mock_response = if (page_number == 1) mock_response else NULL
             )
           },
           error = function(e2) {
-            message("v2 API request failed: ", e2$message, "\nRequested URL: ", path_v2)
-            stop("Both v3 and v2 API requests failed for epic '", epic, "': ", e$message, " (v3), ", e2$message, " (v2). Check epic validity or contact IG support at labs.ig.com.")
+            message("v3 API request failed: ", e2$message, "\nRequested URL: ", path_v3, " with query: ", paste(names(query_v3), query_v3, sep="=", collapse="&"))
+            stop("Both v2 and v3 API requests failed for epic '", epic, "': ", e$message, " (v2), ", e2$message, " (v3). Check epic validity, date format, or contact IG support at labs.ig.com.")
           }
         )
-        return(res_v2)
+        
+        if (!is.null(res_v3$prices)) {
+          prices <- append(prices, res_v3$prices)
+        } else {
+          message("No 'prices' field in response: ", toString(names(res_v3)))
+        }
+        page_data <- res_v3$metadata$pageData
+        if (is.null(page_data) || page_data$totalPages == 0 || page_data$pageNumber == page_data$totalPages) {
+          more_results <- FALSE
+        } else {
+          page_number <- page_number + 1
+          Sys.sleep(wait)
+        }
       }
-    )
-    
-    # Extract prices and metadata
-    if (!is.null(res$prices)) {
-      prices <- append(prices, res$prices)
-    } else {
-      message("No 'prices' field in response: ", toString(names(res)))
+      
+      if (length(prices) == 0) {
+        warning("No prices returned from v3 API for epic '", epic, "'. Verify epic and date range with IG support at labs.ig.com.")
+        return(tibble::tibble())
+      }
+      result <- tibble::as_tibble(do.call(rbind, lapply(prices, as.data.frame)))
+      attr(result, "metadata") <- res_v3$metadata
+      return(result)
     }
-    page_data <- res$metadata$pageData
-    if (is.null(page_data) || page_data$totalPages == 0 || page_data$pageNumber == page_data$totalPages) {
-      more_results <- FALSE
-    } else {
-      page_number <- page_number + 1
-      Sys.sleep(wait)
-    }
+  )
+  
+  # Process v2 response
+  if (!is.null(res$prices)) {
+    result <- tibble::as_tibble(res$prices)
+    attr(result, "metadata") <- res$metadata
+    return(result)
   }
   
-  # Combine results into a tibble
-  if (length(prices) == 0) {
-    warning("No prices returned from API for epic '", epic, "'. Verify epic and date range with IG support at labs.ig.com.")
-    return(tibble::tibble())
-  }
-  result <- tibble::as_tibble(do.call(rbind, lapply(prices, as.data.frame)))
-  attr(result, "metadata") <- res$metadata
-  return(result)
+  warning("No prices returned from API for epic '", epic, "'. Verify epic and date range with IG support at labs.ig.com.")
+  return(tibble::tibble())
 }
 
 #' Retrieve IG account details
