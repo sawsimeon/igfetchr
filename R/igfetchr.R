@@ -112,7 +112,7 @@ ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
 #' Internal function to make IG API requests
 #'
 #' Makes HTTP requests to the IG API using authentication details from `ig_auth()`.
-#' Handles GET, POST, and DELETE methods and processes JSON responses into tibbles.
+#' Handles GET, POST, and DELETE methods and returns the parsed JSON response.
 #' Not intended for direct use; called by higher-level functions like `ig_get_accounts()`.
 #'
 #' @param path Character. API endpoint path (e.g., "/accounts").
@@ -123,8 +123,7 @@ ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
 #' @param version Character. API version ("1", "2", or "3"). If NULL, no VERSION header is sent. Defaults to NULL.
 #' @param mock_response List or data frame. Optional mock response for testing.
 #'
-#' @return A tibble containing the API response data, or a tibble with a single column
-#' containing the raw JSON response if the response cannot be converted to a data frame.
+#' @return The parsed JSON response as a list or tibble, depending on the structure. If the response cannot be converted to a data frame, returns the raw JSON as a list.
 #'
 #' @keywords internal
 .ig_request <- function(path, auth, method = c("GET", "POST", "DELETE"), query = list(), body = NULL, version = NULL, mock_response = NULL) {
@@ -133,13 +132,7 @@ ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
     if (is.data.frame(mock_response)) {
       return(tibble::as_tibble(mock_response))
     }
-    if (is.list(mock_response) && !is.null(mock_response$snapshot) && is.data.frame(mock_response$snapshot)) {
-      return(tibble::as_tibble(mock_response$snapshot))
-    }
-    if (is.list(mock_response) && !is.null(mock_response$prices)) {
-      return(tibble::as_tibble(mock_response$prices))
-    }
-    return(tibble::as_tibble(mock_response))
+    return(mock_response)
   }
   if (identical(Sys.getenv("IGFETCHR_TESTING"), "true")) {
     stop("Network calls disabled during tests. Provide `mock_response` or set IGFETCHR_TESTING to '' to enable network.")
@@ -150,9 +143,9 @@ ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
   if (is.null(auth$api_key) || !is.character(auth$api_key) || nchar(auth$api_key) == 0) {
     stop("`auth` must contain a non-empty api_key.")
   }
-
+  
   url <- paste0(auth$base_url, path)
-
+  
   # Construct headers
   headers_list <- list(
     "X-IG-API-KEY" = auth$api_key,
@@ -168,52 +161,33 @@ ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
     headers_list[["VERSION"]] <- version
   }
   headers <- do.call(httr::add_headers, headers_list)
-
+  
   # Execute request
   resp <- tryCatch({
     switch(
       method,
       GET = httr::GET(url, headers, query = query),
-      POST = httr::POST(url, headers, body = body, encode = "json"),
+      POST = httr::POST(url, headers, body = jsonlite::toJSON(body, auto_unbox = TRUE), encode = "json"),
       DELETE = httr::DELETE(url, headers)
     )
   }, error = function(e) {
     stop("Failed to execute HTTP request: ", e$message)
   })
-
+  
   # Verify response
   if (!inherits(resp, "response")) {
     stop("Invalid response object returned by httr. Check network connection or API availability.")
   }
-
+  
   status <- httr::status_code(resp)
   if (status >= 400) {
     msg <- tryCatch(httr::content(resp, "text", encoding = "UTF-8"), error = function(e) "Unknown error")
     stop("API request failed (status ", status, "): ", msg)
   }
-
+  
   content <- httr::content(resp, "text", encoding = "UTF-8")
-  json <- jsonlite::fromJSON(content, simplifyVector = TRUE)
-  if (is.data.frame(json)) {
-    return(tibble::as_tibble(json))
-  }
-  if (is.list(json) && length(json) == 1 && is.data.frame(json[[1]])) {
-    return(tibble::as_tibble(json[[1]]))
-  }
-  if (is.list(json)) {
-    table_elt <- json[["prices"]] %||% json[["markets"]] %||% json[["accounts"]] %||% json[["positions"]] %||% json[["snapshot"]] %||% NULL
-    if (!is.null(table_elt)) {
-      if (is.data.frame(table_elt)) {
-        return(tibble::as_tibble(table_elt))
-      }
-      if (is.list(table_elt)) {
-        table_elt <- lapply(table_elt, function(x) if (is.null(x)) NA else x)
-        return(tibble::as_tibble(table_elt))
-      }
-    }
-  }
-  warning("Unexpected response structure: ", toString(names(json)))
-  return(tibble::as_tibble(list(response = json)))
+  json <- jsonlite::fromJSON(content, simplifyVector = FALSE)
+  return(json)
 }
 
 #' Search markets
@@ -263,6 +237,164 @@ ig_search_markets <- function(query, auth, mock_response = NULL) {
   
   # Return as tibble
   tibble::as_tibble(res)
+}
+
+#' Get market details for one or more epics
+#'
+#' Fetches detailed market information for the specified market epic(s) from the IG API using the `/markets` endpoint (version 2).
+#' Returns instrument details, dealing rules, and snapshot data.
+#'
+#' @param epics Character vector. One or more market epics (e.g., "CS.D.USDCHF.MINI.IP" or c("CS.D.USDCHF.MINI.IP", "CS.D.EURUSD.MINI.IP")).
+#' @param auth List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.
+#' @param detailed Logical. Whether to return detailed info (instrument and dealing rules) or snapshot data only. Defaults to TRUE.
+#' @param mock_response List or data frame. Optional mock response for testing, bypassing the API call.
+#' @param verbose Logical. Whether to print the raw API response for debugging. Defaults to FALSE.
+#'
+#' @return A tibble with market details, including nested columns: `instrument` (e.g., epic, currencies, marginDepositBands),
+#'   `dealingRules` (e.g., minStepDistance, minDealSize), and `snapshot` (e.g., marketStatus, bid, offer, high, low).
+#'
+#' @examples
+#' \dontrun{
+#' # Authenticate with IG API
+#' auth <- ig_auth(
+#'   username = Sys.getenv("IG_SERVICE_USERNAME"),
+#'   password = Sys.getenv("IG_SERVICE_PASSWORD"),
+#'   api_key = Sys.getenv("IG_SERVICE_API_KEY"),
+#'   acc_type = Sys.getenv("IG_SERVICE_ACC_TYPE"),
+#'   acc_number = Sys.getenv("IG_SERVICE_ACC_NUMBER")
+#' )
+#'
+#' # Example 1: Fetch details for a single epic
+#' markets <- ig_get_markets_by_epic("CS.D.USDCHF.MINI.IP", auth)
+#' print(markets)
+#' # Expected output: A tibble with 1 row and 3 columns (instrument, dealingRules, snapshot)
+#'
+#' # Example 2: Fetch details for multiple epics
+#' markets <- ig_get_markets_by_epic(c("CS.D.USDCHF.MINI.IP", "CS.D.EURUSD.MINI.IP"), auth)
+#' print(markets)
+#' # Expected output: A tibble with 2 rows and 3 columns
+#'
+#' # Example 3: Fetch snapshot data only (no instrument or dealingRules)
+#' markets <- ig_get_markets_by_epic("CS.D.USDCHF.MINI.IP", auth, detailed = FALSE)
+#' print(markets)
+#' # Expected output: A tibble with 1 row and 1 column (snapshot)
+#'
+#' # Example 4: Fetch with verbose output for debugging
+#' markets <- ig_get_markets_by_epic("CS.D.USDCHF.MINI.IP", auth, verbose = TRUE)
+#' print(markets)
+#' # Expected output: Prints raw JSON response, followed by a tibble with 1 row and 3 columns
+#' }
+#'
+#' # Example 5: Use a mock response for testing
+#' mock_response <- list(
+#'   marketDetails = list(
+#'     list(
+#'       instrument = list(
+#'         epic = "CS.D.USDCHF.MINI.IP",
+#'         name = "USD/CHF Mini",
+#'         currencies = list(list(code = "CHF", symbol = "SF", baseExchangeRate = 0.08467604, isDefault = FALSE)),
+#'         marginDepositBands = list(
+#'           list(min = 0, max = 124, margin = 3.33, currency = "CHF"),
+#'           list(min = 124, max = 310, margin = 3.33, currency = "CHF")
+#'         ),
+#'         marginFactor = 3.33,
+#'         marginFactorUnit = "PERCENTAGE"
+#'       ),
+#'       dealingRules = list(
+#'         minStepDistance = list(unit = "POINTS", value = 1.0),
+#'         minDealSize = list(unit = "POINTS", value = 0.1)
+#'       ),
+#'       snapshot = list(
+#'         marketStatus = "TRADEABLE",
+#'         bid = 0.79715,
+#'         offer = 0.79739,
+#'         high = 0.79888,
+#'         low = 0.79512,
+#'         updateTime = "2025/09/29 18:40:51",
+#'         binaryOdds = NA,
+#'         decimalPlacesFactor = 5,
+#'         scalingFactor = 10000
+#'       )
+#'     )
+#'   )
+#' )
+#' markets <- ig_get_markets_by_epic("CS.D.USDCHF.MINI.IP", auth = NULL, mock_response = mock_response)
+#' print(markets)
+#' # Expected output: A tibble with 1 row and 3 columns (instrument, dealingRules, snapshot)
+#'
+#' @export
+ig_get_markets_by_epic <- function(epics, auth, detailed = TRUE, mock_response = NULL, verbose = FALSE) {
+  stopifnot(is.character(epics), length(epics) > 0, all(nchar(epics) > 0))
+  
+  # Allow tests to bypass network
+  if (!is.null(mock_response)) {
+    if (is.list(mock_response) && !is.null(mock_response$marketDetails)) {
+      return(tibble::as_tibble(mock_response$marketDetails))
+    }
+    return(tibble::as_tibble(mock_response))
+  }
+  if (identical(Sys.getenv("IGFETCHR_TESTING"), "true")) {
+    stop("Network calls disabled during tests. Provide `mock_response` to simulate market fetch.")
+  }
+  
+  if (is.null(auth) || !is.list(auth) || is.null(auth$base_url)) {
+    stop("`auth` must be a list returned from ig_auth() with a base_url element.")
+  }
+  
+  # Construct query
+  query <- list(
+    epics = paste(epics, collapse = ","),
+    filter = if (detailed) "ALL" else "SNAPSHOT_ONLY"
+  )
+  
+  # Call .ig_request() and inspect raw response
+  res <- tryCatch(
+    {
+      res <- .ig_request(
+        path = "/markets",
+        auth = auth,
+        method = "GET",
+        query = query,
+        version = "2"
+      )
+      if (verbose) {
+        message("Raw response from /markets: ", jsonlite::toJSON(res, pretty = TRUE, auto_unbox = TRUE))
+      }
+      res
+    },
+    error = function(e) {
+      stop("Failed to fetch market details for epics '", paste(epics, collapse = ", "), "': ", e$message)
+    }
+  )
+  
+  # Check for marketDetails
+  if (!is.list(res) || is.null(res$marketDetails)) {
+    warning("No marketDetails in response for epics '", paste(epics, collapse = ", "), "'. Response: ", toString(names(res)))
+    return(tibble::tibble())
+  }
+  
+  # Check if marketDetails is empty
+  if (length(res$marketDetails) == 0) {
+    warning("Empty marketDetails list for epics '", paste(epics, collapse = ", "), "'.")
+    return(tibble::tibble())
+  }
+  
+  # Ensure all entries have expected fields
+  valid_details <- sapply(res$marketDetails, function(x) {
+    is.list(x) && all(c("instrument", "dealingRules", "snapshot") %in% names(x))
+  })
+  if (!all(valid_details)) {
+    warning("Some market details missing expected fields (instrument, dealingRules, snapshot) for epics '",
+            paste(epics, collapse = ", "), "'. Response: ", toString(names(res$marketDetails)))
+    return(tibble::tibble())
+  }
+  
+  # Convert to tibble with explicit columns
+  tibble::tibble(
+    instrument = lapply(res$marketDetails, function(x) x$instrument),
+    dealingRules = lapply(res$marketDetails, function(x) x$dealingRules),
+    snapshot = lapply(res$marketDetails, function(x) x$snapshot)
+  )
 }
 
 #' Get current price for a market
@@ -341,15 +473,15 @@ ig_get_price <- function(epic, auth, mock_response = NULL) {
 #' Uses the /prices/{epic}/{resolution}/{startDate}/{endDate} endpoint (version 2) with a fallback to version 3.
 #'
 #' @param epic Character. Market epic (e.g., "CS.D.USDCHF.MINI.IP").
-#' @param from Character or Date. Start date (e.g., "2025-06-30" or "2025-06-30 00:00:00"). Required.
-#' @param to Character or Date. End date (e.g., "2025-07-25" or "2025-07-25 23:59:59"). Required.
-#' @param resolution Character. Resolution code (e.g., "D", "DAY", "1MIN", "HOUR"). Defaults to "DAY".
+#' @param from Character or Date. Start date (e.g., "2025-09-01" or "2025-09-01 00:00:00"). Required.
+#' @param to Character or Date. End date (e.g., "2025-09-28" or "2025-09-28 23:59:59"). Required.
+#' @param resolution Character. Resolution code (e.g., "D", "1MIN", "HOUR"). Defaults to "D".
 #' @param page_size Integer. Number of data points per page (v3 only). Defaults to 20.
 #' @param auth List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.
 #' @param mock_response List or data frame. Optional mock response for testing, bypassing the API call.
 #' @param wait Numeric. Seconds to wait between paginated API calls (v3 only). Defaults to 1.
 #'
-#' @return A tibble with historical OHLC data, including columns like `snapshotTime`, `openPrice`, `highPrice`, `lowPrice`, `closePrice`, and others as returned by the IG API.
+#' @return A tibble with historical OHLC data, including columns like `snapshotTime`, `openPrice$bid`, `openPrice$ask`, `closePrice$bid`, `closePrice$ask`, `highPrice$bid`, `highPrice$ask`, `lowPrice$bid`, `lowPrice$ask`, `lastTradedVolume`, and nested `$lastTraded` fields.
 #'
 #' @examples
 #' \dontrun{
@@ -363,9 +495,9 @@ ig_get_price <- function(epic, auth, mock_response = NULL) {
 #' )
 #' hist <- ig_get_historical(
 #'   "CS.D.USDCHF.MINI.IP",
-#'   from = "2025-06-30",
-#'   to = "2025-07-25",
-#'   resolution = "DAY",
+#'   from = "2025-09-01",
+#'   to = "2025-09-28",
+#'   resolution = "D",
 #'   auth
 #' )
 #' print(hist)
@@ -373,28 +505,40 @@ ig_get_price <- function(epic, auth, mock_response = NULL) {
 #' # Using time
 #' hist <- ig_get_historical(
 #'   "CS.D.USDCHF.MINI.IP",
-#'   from = "2025-06-30 00:00:00",
-#'   to = "2025-07-25 23:59:59",
-#'   resolution = "DAY",
+#'   from = "2025-09-01 00:00:00",
+#'   to = "2025-09-28 23:59:59",
+#'   resolution = "D",
 #'   auth
 #' )
 #'
 #' # Using mock response
 #' mock_response <- list(
 #'   prices = data.frame(
-#'     snapshotTime = "2025/07/01 00:00:00",
-#'     openPrice = 0.970,
-#'     highPrice = 0.975,
-#'     lowPrice = 0.965,
-#'     closePrice = 0.971
+#'     snapshotTime = "2025/09/01 00:00:00",
+#'     openPrice.bid = 0.970,
+#'     openPrice.ask = 0.971,
+#'     openPrice.lastTraded = NA,
+#'     highPrice.bid = 0.975,
+#'     highPrice.ask = 0.976,
+#'     highPrice.lastTraded = NA,
+#'     lowPrice.bid = 0.965,
+#'     lowPrice.ask = 0.966,
+#'     lowPrice.lastTraded = NA,
+#'     closePrice.bid = 0.971,
+#'     closePrice.ask = 0.972,
+#'     closePrice.lastTraded = NA,
+#'     lastTradedVolume = 50000
 #'   ),
-#'   metadata = list(allowance = list(remainingAllowance = 10000), pageData = list(pageNumber = 1, totalPages = 1))
+#'   metadata = list(
+#'     allowance = list(remainingAllowance = 10000),
+#'     pageData = list(pageNumber = 1, totalPages = 1)
+#'   )
 #' )
 #' hist <- ig_get_historical(
 #'   "CS.D.USDCHF.MINI.IP",
-#'   from = "2025-06-30",
-#'   to = "2025-07-25",
-#'   resolution = "DAY",
+#'   from = "2025-09-01",
+#'   to = "2025-09-28",
+#'   resolution = "D",
 #'   page_size = 20,
 #'   auth,
 #'   mock_response = mock_response
@@ -402,7 +546,7 @@ ig_get_price <- function(epic, auth, mock_response = NULL) {
 #' }
 #'
 #' @export
-ig_get_historical <- function(epic, from, to, resolution = "DAY", page_size = 20, auth, mock_response = NULL, wait = 1) {
+ig_get_historical <- function(epic, from, to, resolution = "D", page_size = 20, auth, mock_response = NULL, wait = 1) {
   stopifnot(
     is.character(epic), nchar(epic) > 0,
     is.character(from) || inherits(from, "Date"),
@@ -412,46 +556,36 @@ ig_get_historical <- function(epic, from, to, resolution = "DAY", page_size = 20
     is.numeric(wait), wait >= 0
   )
   
-  # Validate epic (optional)
-  if (is.null(mock_response)) {
-    markets <- tryCatch(
-      {
-        .ig_request("/markets", auth, method = "GET")
-      },
-      error = function(e) {
-        warning("Failed to fetch markets to validate epic: ", e$message, ". Proceeding without validation.")
-        return(NULL)
-      }
-    )
-    if (!is.null(markets) && is.data.frame(markets) && !any(markets$epic == epic)) {
-      warning("Epic '", epic, "' not found in available markets. Available epics: ", paste(markets$epic, collapse = ", "))
-    }
-  }
-  
   # Map resolution codes
   resolution_map <- c(
     "1s" = "SECOND",
-    "1Min" = "MINUTE", "M" = "MINUTE", "MINUTE" = "MINUTE",
-    "2Min" = "MINUTE_2", "3Min" = "MINUTE_3", "5Min" = "MINUTE_5",
-    "10Min" = "MINUTE_10", "15Min" = "MINUTE_15", "30Min" = "MINUTE_30",
-    "1h" = "HOUR", "H" = "HOUR", "HOUR" = "HOUR",
-    "2h" = "HOUR_2", "3h" = "HOUR_3", "4h" = "HOUR_4",
-    "D" = "DAY", "DAY" = "DAY",
-    "W" = "WEEK", "WEEK" = "WEEK",
-    "ME" = "MONTH", "MONTH" = "MONTH"
+    "1Min" = "MINUTE", "M" = "MINUTE",
+    "2Min" = "MINUTE_2",
+    "3Min" = "MINUTE_3",
+    "5Min" = "MINUTE_5",
+    "10Min" = "MINUTE_10",
+    "15Min" = "MINUTE_15",
+    "30Min" = "MINUTE_30",
+    "1h" = "HOUR", "H" = "HOUR",
+    "2h" = "HOUR_2",
+    "3h" = "HOUR_3",
+    "4h" = "HOUR_4",
+    "D" = "DAY",
+    "W" = "WEEK",
+    "ME" = "MONTH"
   )
   if (!resolution %in% names(resolution_map)) {
-    warning("Invalid resolution '", resolution, "', returning as-is. Supported: ", paste(names(resolution_map), collapse=", "))
+    message("Invalid resolution '", resolution, "', returning as-is. Supported: ", paste(names(resolution_map), collapse=", "))
     resolution <- resolution
   } else {
     resolution <- resolution_map[resolution]
   }
   
   # Parse and validate dates
-  from_date <- if (inherits(from, "Date")) from else as.POSIXct(from, tryFormats = c("%Y-%m-%d", "%Y/%m/%d", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ"))
-  to_date <- if (inherits(to, "Date")) to else as.POSIXct(to, tryFormats = c("%Y-%m-%d", "%Y/%m/%d", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ"))
+  from_date <- if (inherits(from, "Date")) from else as.POSIXct(from, tryFormats = c("%Y-%m-%d", "%Y/%m/%d", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ"))
+  to_date <- if (inherits(to, "Date")) to else as.POSIXct(to, tryFormats = c("%Y-%m-%d", "%Y/%m/%d", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ"))
   if (is.na(from_date) || is.na(to_date)) {
-    stop("Invalid date format for 'from' or 'to'. Use YYYY-MM-DD, YYYY/MM/DD HH:MM:SS, or YYYY-MM-DDTHH:MM:SSZ.")
+    stop("Invalid date format for 'from' or 'to'. Use YYYY-MM-DD, YYYY-MM-DD HH:MM:SS, or YYYY-MM-DDTHH:MM:SS.")
   }
   if (to_date < from_date) {
     stop("'to' date must be after 'from' date.")
@@ -459,12 +593,12 @@ ig_get_historical <- function(epic, from, to, resolution = "DAY", page_size = 20
   
   # Check date range (max 90 days for DEMO accounts)
   if (as.numeric(to_date - from_date) > 90) {
-    warning("Date range exceeds 90 days, which may not be supported in DEMO accounts. Consider a shorter range.")
+    message("Date range exceeds 90 days, which may not be supported in DEMO accounts. Consider a shorter range.")
   }
   # Warn if dates are in the future
   current_date <- Sys.time()
   if (from_date > current_date || to_date > current_date) {
-    warning("Dates are in the future, which may not be supported in DEMO accounts. Current date: ", format(current_date, "%Y-%m-%d %H:%M:%S"))
+    message("Dates are in the future, which may not be supported in DEMO accounts. Current date: ", format(current_date, "%Y-%m-%d %H:%M:%S"))
   }
   
   # Convert dates
@@ -475,14 +609,14 @@ ig_get_historical <- function(epic, from, to, resolution = "DAY", page_size = 20
       } else if (inherits(dt, "Date")) {
         as.POSIXct(dt)
       } else {
-        as.POSIXct(dt, tryFormats = c("%Y-%m-%d", "%Y/%m/%d", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ"))
+        as.POSIXct(dt, tryFormats = c("%Y-%m-%d", "%Y/%m/%d", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ"))
       }
     }, error = function(e) {
-      warning("Date parsing failed, returning original: ", dt)
+      message("Date parsing failed, returning original: ", dt)
       return(dt)
     })
     if (inherits(dt_parsed, "character")) return(dt)
-    fmt <- if (version == "3") "%Y-%m-%dT%H:%M:%SZ" else if (version == "1") "%Y:%m:%d-%H:%M:%S" else "%Y/%m/%d %H:%M:%S"
+    fmt <- if (version == "3") "%Y-%m-%dT%H:%M:%S" else if (version == "1") "%Y:%m:%d-%H:%M:%S" else "%Y-%m-%d %H:%M:%S"
     format(dt_parsed, fmt)
   }
   
@@ -493,7 +627,7 @@ ig_get_historical <- function(epic, from, to, resolution = "DAY", page_size = 20
   to_v3 <- conv_datetime(to_date, version = "3")
   
   # Try v2 endpoint first (aligned with Python)
-  path_v2 <- paste0("/prices/", utils::URLencode(epic, reserved = TRUE), "/", resolution, "/", from_v2, "/", to_v2)
+  path_v2 <- paste0("/prices/", utils::URLencode(epic, reserved = TRUE), "/", resolution, "/", utils::URLencode(from_v2, reserved = TRUE), "/", utils::URLencode(to_v2, reserved = TRUE))
   res <- tryCatch(
     {
       .ig_request(
@@ -540,12 +674,8 @@ ig_get_historical <- function(epic, from, to, resolution = "DAY", page_size = 20
           }
         )
         
-        if (!is.null(res_v3$prices)) {
-          prices <- append(prices, res_v3$prices)
-        } else {
-          message("No 'prices' field in response: ", toString(names(res_v3)))
-        }
-        page_data <- res_v3$metadata$pageData
+        prices <- append(prices, list(res_v3))
+        page_data <- if (is.list(res_v3) && !is.data.frame(res_v3) && !is.null(res_v3$pageData)) res_v3$pageData else list(pageNumber = 1, totalPages = 1)
         if (is.null(page_data) || page_data$totalPages == 0 || page_data$pageNumber == page_data$totalPages) {
           more_results <- FALSE
         } else {
@@ -555,23 +685,30 @@ ig_get_historical <- function(epic, from, to, resolution = "DAY", page_size = 20
       }
       
       if (length(prices) == 0) {
-        warning("No prices returned from v3 API for epic '", epic, "'. Verify epic and date range with IG support at labs.ig.com.")
+        message("No prices returned from v3 API for epic '", epic, "'. Verify epic and date range with IG support at labs.ig.com.")
         return(tibble::tibble())
       }
       result <- tibble::as_tibble(do.call(rbind, lapply(prices, as.data.frame)))
-      attr(result, "metadata") <- res_v3$metadata
+      if (is.list(res_v3) && !is.data.frame(res_v3) && !is.null(res_v3$metadata)) {
+        attr(result, "metadata") <- res_v3$metadata
+      }
       return(result)
     }
   )
   
-  # Process v2 response
-  if (!is.null(res$prices)) {
+  # Process response
+  if (is.data.frame(res)) {
+    return(tibble::as_tibble(res))
+  }
+  if (is.list(res) && !is.data.frame(res) && !is.null(res$prices) && is.data.frame(res$prices)) {
     result <- tibble::as_tibble(res$prices)
-    attr(result, "metadata") <- res$metadata
+    if (!is.null(res$metadata)) {
+      attr(result, "metadata") <- res$metadata
+    }
     return(result)
   }
   
-  warning("No prices returned from API for epic '", epic, "'. Verify epic and date range with IG support at labs.ig.com.")
+  message("No prices returned from API for epic '", epic, "'. Verify epic and date range with IG support at labs.ig.com.")
   return(tibble::tibble())
 }
 
@@ -678,76 +815,257 @@ ig_get_options <- function(auth, mock_response = NULL) {
 
 #' Execute a trade (place OTC position)
 #'
-#' Places a market trade (BUY/SELL) for a specified market epic. For testing, use `mock_response` to avoid network calls.
+#' Places an immediate market trade (BUY/SELL) for a specified market epic using the IG API `/positions/otc` endpoint (version 2).
+#' The currency code is automatically determined from the market's instrument details unless specified.
+#' For testing, use `mock_response` to avoid network calls.
 #'
-#' @param epic Character. Market epic (e.g., "CS.D.USDCHF.CFD.IP").
+#' @param epic Character. Market epic (e.g., "CS.D.USDCHF.MINI.IP").
 #' @param direction Character. Trade direction, either "BUY" or "SELL".
 #' @param size Numeric. Trade size (units).
 #' @param auth List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.
-#' @param limit Numeric. Optional limit price for the trade.
-#' @param stop Numeric. Optional stop price for the trade.
+#' @param currency_code Character. Currency code for the trade (e.g., "USD"). If NULL, determined from the market's instrument details. Defaults to NULL.
+#' @param expiry Character. Expiry date for the instrument (e.g., "-"). If NULL, defaults to "-" for non-expiring instruments or fetched from market details. Defaults to NULL.
+#' @param guaranteed_stop Logical. Whether to set a guaranteed stop. Defaults to FALSE.
+#' @param level Numeric. Price level for the order (for limit orders). Defaults to NULL (market order).
+#' @param time_in_force Character. Time in force for the order, either "EXECUTE_AND_ELIMINATE" or "FILL_OR_KILL". Defaults to "FILL_OR_KILL".
+#' @param order_type Character. Order type, either "MARKET" or "LIMIT". Defaults to "MARKET".
+#' @param limit_distance Numeric. Distance to limit price (optional). Defaults to NULL.
+#' @param limit_level Numeric. Limit price for the trade (optional). Defaults to NULL.
+#' @param stop_distance Numeric. Distance to stop price (optional). Defaults to NULL.
+#' @param stop_level Numeric. Stop price for the trade (optional). Defaults to NULL.
+#' @param deal_reference Character. Custom deal reference (optional). Defaults to NULL.
+#' @param force_open Logical. Whether to force a new position if an opposite position exists. Defaults to FALSE.
 #' @param mock_response List or data frame. Optional mock response for testing, bypassing the API call.
 #'
-#' @return A tibble with trade confirmation details, including columns like `dealId`, `dealReference`, `status`, and others as returned by the IG API `/positions/otc` endpoint.
+#' @return A tibble with trade confirmation details, including columns like `dealId`, `dealReference`, `status`, and others as returned by the IG API `/confirms/{dealReference}` endpoint.
+#'
+#' @note For some instruments (e.g., forex pairs like `CS.D.USDCHF.MINI.IP`), the API requires an `expiry` value. If not specified, the function attempts to fetch it from `ig_get_markets_by_epic` or defaults to "-" for non-expiring instruments.
 #'
 #' @examples
 #' \dontrun{
-#' # Authenticate and execute a trade
+#' # Authenticate with IG API
 #' auth <- ig_auth(
-#'   username = "your_username",
-#'   password = "your_password",
-#'   api_key = "your_api_key",
-#'   acc_type = "DEMO",
-#'   acc_number = "ABC123"
+#'   username = Sys.getenv("IG_SERVICE_USERNAME"),
+#'   password = Sys.getenv("IG_SERVICE_PASSWORD"),
+#'   api_key = Sys.getenv("IG_SERVICE_API_KEY"),
+#'   acc_type = Sys.getenv("IG_SERVICE_ACC_TYPE"),
+#'   acc_number = Sys.getenv("IG_SERVICE_ACC_NUMBER")
 #' )
-#' res <- ig_execute_trade("CS.D.USDCHF.CFD.IP", "BUY", 1.0, auth, limit = 0.855, stop = 0.845)
-#' print(res)
 #'
-#' # Using mock response for testing
-#' mock_response <- data.frame(
-#'   dealId = "DIXXXX",
-#'   dealReference = "REF123",
-#'   status = "OPEN"
+#' # Example 1: Place a market buy trade
+#' trade <- ig_execute_trade(
+#'   epic = "CS.D.USDCHF.MINI.IP",
+#'   direction = "BUY",
+#'   size = 1.0,
+#'   auth = auth,
+#'   limit_level = 0.850,
+#'   stop_level = 0.759,
+#'   force_open = FALSE
 #' )
-#' res <- ig_execute_trade("CS.D.USDCHF.CFD.IP", "BUY", 1.0, auth, mock_response = mock_response)
+#' print(trade)
+#' # Expected output: A tibble with trade confirmation details (e.g., dealId, dealReference, status)
+#'
+#' # Example 2: Place a limit sell order
+#' trade <- ig_execute_trade(
+#'   epic = "CS.D.USDCHF.MINI.IP",
+#'   direction = "SELL",
+#'   size = 1.0,
+#'   auth = auth,
+#'   order_type = "LIMIT",
+#'   level = 0.7950,
+#'   time_in_force = "EXECUTE_AND_ELIMINATE",
+#'   limit_level = 0.7900,
+#'   stop_level = 0.8000
+#' )
+#' print(trade)
+#' # Expected output: A tibble with trade confirmation details for the limit order
+#'
+#' # Example 3: Place a trade with a guaranteed stop and custom currency
+#' trade <- ig_execute_trade(
+#'   epic = "CS.D.USDCHF.MINI.IP",
+#'   direction = "BUY",
+#'   size = 1.0,
+#'   auth = auth,
+#'   currency_code = "CHF",
+#'   guaranteed_stop = TRUE,
+#'   stop_distance = 50
+#' )
+#' print(trade)
+#' # Expected output: A tibble with trade confirmation details, including guaranteed stop
+#'
+#' # Example 4: Place a trade with a custom deal reference
+#' trade <- ig_execute_trade(
+#'   epic = "CS.D.USDCHF.MINI.IP",
+#'   direction = "BUY",
+#'   size = 1.0,
+#'   auth = auth,
+#'   deal_reference = "MY_TRADE_001"
+#' )
+#' print(trade)
+#' # Expected output: A tibble with trade confirmation details, with dealReference as "MY_TRADE_001"
 #' }
 #'
+#' # Example 5: Use a mock response for testing
+#' mock_response <- list(
+#'   dealId = "DIAAAA123456789",
+#'   dealReference = "REF123456789",
+#'   status = "ACCEPTED",
+#'   instrumentName = "USD/CHF Mini",
+#'   epic = "CS.D.USDCHF.MINI.IP",
+#'   direction = "BUY",
+#'   size = 1.0,
+#'   level = 0.7975,
+#'   date = "2025-09-29T19:25:29",
+#'   profitLoss = NA,
+#'   reason = "TRADE_EXECUTED"
+#' )
+#' trade <- ig_execute_trade(
+#'   epic = "CS.D.USDCHF.MINI.IP",
+#'   direction = "BUY",
+#'   size = 1.0,
+#'   auth = NULL,
+#'   mock_response = mock_response
+#' )
+#' print(trade)
+#' # Expected output: A tibble with 1 row and columns matching the mock response
+#'
 #' @export
-ig_execute_trade <- function(epic, direction, size, auth, limit = NULL, stop = NULL, mock_response = NULL) {
-  stopifnot(is.character(epic), is.character(direction), is.numeric(size))
-  if (!direction %in% c("BUY", "SELL")) stop("`direction` must be 'BUY' or 'SELL'")
-
+ig_execute_trade <- function(epic, direction, size, auth, currency_code = NULL, expiry = NULL, guaranteed_stop = FALSE, 
+                             level = NULL, time_in_force = "FILL_OR_KILL", order_type = "MARKET", 
+                             limit_distance = NULL, limit_level = NULL, stop_distance = NULL, 
+                             stop_level = NULL, deal_reference = NULL, force_open = FALSE, 
+                             mock_response = NULL) {
+  stopifnot(
+    is.character(epic), nchar(epic) > 0,
+    is.character(direction), direction %in% c("BUY", "SELL"),
+    is.numeric(size), size > 0,
+    is.logical(guaranteed_stop),
+    is.character(time_in_force), time_in_force %in% c("EXECUTE_AND_ELIMINATE", "FILL_OR_KILL"),
+    is.character(order_type), order_type %in% c("MARKET", "LIMIT"),
+    is.logical(force_open)
+  )
+  if (!is.null(currency_code)) stopifnot(is.character(currency_code))
+  if (!is.null(expiry)) stopifnot(is.character(expiry))
+  if (!is.null(level)) stopifnot(is.numeric(level))
+  if (!is.null(limit_distance)) stopifnot(is.numeric(limit_distance))
+  if (!is.null(limit_level)) stopifnot(is.numeric(limit_level))
+  if (!is.null(stop_distance)) stopifnot(is.numeric(stop_distance))
+  if (!is.null(stop_level)) stopifnot(is.numeric(stop_level))
+  if (!is.null(deal_reference)) stopifnot(is.character(deal_reference))
+  
   # Allow tests to bypass network
   if (!is.null(mock_response)) {
+    # Convert NULL values to NA to ensure tibble compatibility
+    mock_response <- lapply(mock_response, function(x) if (is.null(x)) NA else x)
     return(tibble::as_tibble(mock_response))
   }
   if (identical(Sys.getenv("IGFETCHR_TESTING"), "true")) {
     stop("Network calls disabled during tests. Provide `mock_response` to simulate a trade.")
   }
-
+  
   if (is.null(auth) || !is.list(auth) || is.null(auth$base_url)) {
     stop("`auth` must be a list returned from ig_auth() with a base_url element.")
   }
-
+  
+  # Fetch currency code and expiry from market details if not provided
+  if (is.null(currency_code) || is.null(expiry)) {
+    market <- tryCatch(
+      {
+        ig_get_markets_by_epic(epic, auth, detailed = TRUE)
+      },
+      error = function(e) {
+        message("Failed to fetch market details for epic '", epic, "': ", e$message, ". Using default currency 'USD'.")
+        return(NULL)
+      }
+    )
+    if (!is.null(market) && nrow(market) > 0 && is.list(market$instrument) && length(market$instrument[[1]]$currencies) > 0) {
+      if (is.null(currency_code)) {
+        currency_code <- market$instrument[[1]]$currencies[[1]]$code
+        if (is.null(currency_code) || !is.character(currency_code) || nchar(currency_code) == 0) {
+          message("No valid currency code found for epic '", epic, "'. Using default currency 'USD'.")
+          currency_code <- "USD"
+        }
+      }
+      if (is.null(expiry)) {
+        expiry <- market$instrument[[1]]$expiry
+        if (is.null(expiry) || !is.character(expiry) || nchar(expiry) == 0) {
+          message("No valid expiry found for epic '", epic, "'. Using default expiry '-'.")
+          expiry <- "-"
+        }
+      }
+    } else {
+      if (is.null(currency_code)) {
+        message("No currency data available for epic '", epic, "'. Using default currency 'USD'.")
+        currency_code <- "USD"
+      }
+      if (is.null(expiry)) {
+        message("No expiry data available for epic '", epic, "'. Using default expiry '-'.")
+        expiry <- "-"
+      }
+    }
+  }
+  
   url_path <- "/positions/otc"
   body <- list(
     epic = epic,
     direction = direction,
     size = size,
-    orderType = "MARKET",  # Default to market order
-    currencyCode = "USD"   # Default currency, adjust as needed
+    currencyCode = currency_code,
+    expiry = expiry,
+    orderType = order_type,
+    guaranteedStop = tolower(guaranteed_stop),
+    forceOpen = tolower(force_open)
   )
-  if (!is.null(limit)) body$limitLevel <- limit
-  if (!is.null(stop)) body$stopLevel <- stop
-
-  res <- .ig_request(
-    path = url_path,
-    auth = auth,
-    method = "POST",
-    body = body,
-    mock_response = mock_response
+  if (!is.null(level)) body$level <- level
+  if (!is.null(time_in_force)) body$timeInForce <- time_in_force
+  if (!is.null(limit_distance)) body$limitDistance <- limit_distance
+  if (!is.null(limit_level)) body$limitLevel <- limit_level
+  if (!is.null(stop_distance)) body$stopDistance <- stop_distance
+  if (!is.null(stop_level)) body$stopLevel <- stop_level
+  if (!is.null(deal_reference)) body$dealReference <- deal_reference
+  
+  res <- tryCatch(
+    {
+      .ig_request(
+        path = url_path,
+        auth = auth,
+        method = "POST",
+        body = body,
+        version = "2"
+      )
+    },
+    error = function(e) {
+      stop("Failed to execute trade: ", e$message)
+    }
   )
-  tibble::as_tibble(res)
+  
+  # Fetch deal confirmation
+  if (is.list(res) && !is.null(res$dealReference)) {
+    deal_ref <- res$dealReference
+    confirm_path <- paste0("/confirms/", deal_ref)
+    confirm_res <- tryCatch(
+      {
+        .ig_request(
+          path = confirm_path,
+          auth = auth,
+          method = "GET",
+          version = "1"
+        )
+      },
+      error = function(e) {
+        message("Failed to fetch deal confirmation for dealReference '", deal_ref, "': ", e$message)
+        return(tibble::as_tibble(res))
+      }
+    )
+    # Convert NULL values to NA in confirmation response
+    confirm_res <- lapply(confirm_res, function(x) if (is.null(x)) NA else x)
+    return(tibble::as_tibble(confirm_res))
+  }
+  
+  message("No dealReference returned in response for epic '", epic, "'. Returning raw response.")
+  # Convert NULL values to NA in raw response
+  res <- lapply(res, function(x) if (is.null(x)) NA else x)
+  return(tibble::as_tibble(res))
 }
 
 #' Close session
