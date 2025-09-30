@@ -236,7 +236,9 @@ ig_search_markets <- function(query, auth, mock_response = NULL) {
   )
   
   # Return as tibble
-  tibble::as_tibble(res)
+  markets = tibble::as_tibble(res)
+  
+  purrr::map_dfr(markets$markets, as_tibble)
 }
 
 #' Get market details for one or more epics
@@ -250,7 +252,7 @@ ig_search_markets <- function(query, auth, mock_response = NULL) {
 #' @param mock_response List or data frame. Optional mock response for testing, bypassing the API call.
 #' @param verbose Logical. Whether to print the raw API response for debugging. Defaults to FALSE.
 #'
-#' @return A tibble with market details, including nested columns: `instrument` (e.g., epic, currencies, marginDepositBands),
+#' @return A list with market details, including nested columns: `instrument` (e.g., epic, currencies, marginDepositBands),
 #'   `dealingRules` (e.g., minStepDistance, minDealSize), and `snapshot` (e.g., marketStatus, bid, offer, high, low).
 #'
 #' @examples
