@@ -763,7 +763,7 @@ ig_get_accounts <- function(auth, mock_response = NULL) {
   tibble::as_tibble(res)
 }
 
-#' Get options/derivative positions
+#' Get options/derivatives positions
 #'
 #' Retrieves positions filtered for options/derivatives from the IG API. Returns a tibble with position details.
 #'
