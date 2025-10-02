@@ -458,15 +458,9 @@ ig_get_price <- function(epic, auth, mock_response = NULL) {
       stop("Failed to fetch price for epic '", epic, "': ", e$message)
     }
   )
-  
-  # Check if response is a nested list (unexpected structure)
-  if ("response" %in% names(res)) {
-    warning("Unexpected response structure for epic '", epic, "': ", toString(names(res$response)))
-    return(tibble::tibble(response = list(res$response)))
-  }
-  
+
   # Return as tibble
-  tibble::as_tibble(res)
+  purrr::map(res$snapshot, ~ if (is.null(.x)) NA else .x) |> tibble::as_tibble()
 }
 
 #' Get historical prices for a market
@@ -628,7 +622,7 @@ ig_get_historical <- function(epic, from, to, resolution = "D", page_size = 20, 
   from_v3 <- conv_datetime(from_date, version = "3")
   to_v3 <- conv_datetime(to_date, version = "3")
   
-  # Try v2 endpoint first (aligned with Python)
+  
   path_v2 <- paste0("/prices/", utils::URLencode(epic, reserved = TRUE), "/", resolution, "/", utils::URLencode(from_v2, reserved = TRUE), "/", utils::URLencode(to_v2, reserved = TRUE))
   res <- tryCatch(
     {
