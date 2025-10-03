@@ -460,7 +460,9 @@ ig_get_price <- function(epic, auth, mock_response = NULL) {
   )
 
   # Return as tibble
-  purrr::map(res$snapshot, ~ if (is.null(.x)) NA else .x) |> tibble::as_tibble()
+  tibble::as_tibble(purrr::map(res$snapshot, ~ if (is.null(.x)) NA else .x))
+  
+  
 }
 
 #' Get historical prices for a market
@@ -494,6 +496,7 @@ ig_get_price <- function(epic, auth, mock_response = NULL) {
 #'   from = "2025-09-01",
 #'   to = "2025-09-28",
 #'   resolution = "D",
+#'   page_size = 20,
 #'   auth
 #' )
 #' print(hist)
@@ -504,6 +507,7 @@ ig_get_price <- function(epic, auth, mock_response = NULL) {
 #'   from = "2025-09-01 00:00:00",
 #'   to = "2025-09-28 23:59:59",
 #'   resolution = "D",
+#'   page_size = 20,
 #'   auth
 #' )
 #'
@@ -693,19 +697,26 @@ ig_get_historical <- function(epic, from, to, resolution = "D", page_size = 20, 
   )
   
   # Process response
-  if (is.data.frame(res)) {
-    return(tibble::as_tibble(res))
-  }
-  if (is.list(res) && !is.data.frame(res) && !is.null(res$prices) && is.data.frame(res$prices)) {
-    result <- tibble::as_tibble(res$prices)
-    if (!is.null(res$metadata)) {
-      attr(result, "metadata") <- res$metadata
-    }
+  if (is.list(res) && !is.null(res$prices)) {
+    result <- tibble::tibble(
+      snapshotTime = sapply(res$prices, `[[`, "snapshotTime"),
+      open_bid      = sapply(res$prices, function(x) x$openPrice$bid),
+      open_ask      = sapply(res$prices, function(x) x$openPrice$ask),
+      close_bid     = sapply(res$prices, function(x) x$closePrice$bid),
+      close_ask     = sapply(res$prices, function(x) x$closePrice$ask),
+      high_bid      = sapply(res$prices, function(x) x$highPrice$bid),
+      high_ask      = sapply(res$prices, function(x) x$highPrice$ask),
+      low_bid       = sapply(res$prices, function(x) x$lowPrice$bid),
+      low_ask       = sapply(res$prices, function(x) x$lowPrice$ask),
+      volume        = sapply(res$prices, `[[`, "lastTradedVolume")
+    )
+    if (!is.null(res$metadata)) attr(result, "metadata") <- res$metadata
     return(result)
   }
   
   message("No prices returned from API for epic '", epic, "'. Verify epic and date range with IG support at labs.ig.com.")
   return(tibble::tibble())
+  
 }
 
 #' Retrieve IG account details
