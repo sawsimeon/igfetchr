@@ -765,7 +765,26 @@ ig_get_accounts <- function(auth, mock_response = NULL) {
   )
   
   # Return as tibble (rely on .ig_request()'s handling for structure)
-  tibble::as_tibble(res)
+  tibble::as_tibble(
+    do.call(rbind, lapply(res$accounts, function(x) {
+      data.frame(
+        accountId        = x$accountId,
+        accountName      = x$accountName,
+        accountAlias     = ifelse(is.null(x$accountAlias), NA, x$accountAlias),
+        status           = x$status,
+        accountType      = x$accountType,
+        preferred        = x$preferred,
+        currency         = x$currency,
+        canTransferFrom  = x$canTransferFrom,
+        canTransferTo    = x$canTransferTo,
+        balance          = x$balance$balance,
+        deposit          = x$balance$deposit,
+        profitLoss       = x$balance$profitLoss,
+        available        = x$balance$available,
+        stringsAsFactors = FALSE
+      )
+    }))
+  )
 }
 
 #' Get options/derivatives positions
@@ -810,14 +829,48 @@ ig_get_options <- function(auth, mock_response = NULL) {
     method = "GET",
     mock_response = mock_response
   )
-  df <- tibble::as_tibble(res)
-  # Try to filter for option-like instruments if a column exists (best-effort)
-  if ("instrumentType" %in% names(df)) {
-    opts <- df[df$instrumentType %in% c("OPTION", "DERIVATIVE", "OPTION_CONTRACT"), , drop = FALSE]
-    return(tibble::as_tibble(opts))
-  }
-  # If no instrumentType column, return the full positions tibble (caller can filter)
-  tibble::as_tibble(df)
+  
+  tibble::as_tibble(
+    do.call(rbind, lapply(res$positions, function(x) {
+      data.frame(
+        # Position fields
+        contractSize         = x$position$contractSize,
+        createdDate          = x$position$createdDate,
+        dealId               = x$position$dealId,
+        dealSize             = x$position$dealSize,
+        direction            = x$position$direction,
+        limitLevel           = x$position$limitLevel,
+        openLevel            = x$position$openLevel,
+        currency             = x$position$currency,
+        controlledRisk       = x$position$controlledRisk,
+        stopLevel            = x$position$stopLevel,
+        trailingStep         = ifelse(is.null(x$position$trailingStep), NA, x$position$trailingStep),
+        trailingStopDistance = ifelse(is.null(x$position$trailingStopDistance), NA, x$position$trailingStopDistance),
+        limitedRiskPremium   = ifelse(is.null(x$position$limitedRiskPremium), NA, x$position$limitedRiskPremium),
+        
+        # Market fields
+        instrumentName       = x$market$instrumentName,
+        expiry               = x$market$expiry,
+        epic                 = x$market$epic,
+        instrumentType       = x$market$instrumentType,
+        lotSize              = x$market$lotSize,
+        high                 = x$market$high,
+        low                  = x$market$low,
+        percentageChange     = x$market$percentageChange,
+        netChange            = x$market$netChange,
+        bid                  = x$market$bid,
+        offer                = x$market$offer,
+        updateTime           = x$market$updateTime,
+        delayTime            = x$market$delayTime,
+        streamingPricesAvailable = x$market$streamingPricesAvailable,
+        marketStatus         = x$market$marketStatus,
+        scalingFactor        = x$market$scalingFactor,
+        
+        stringsAsFactors = FALSE
+      )
+    }))
+  )
+  
 }
 
 #' Execute a trade (place OTC position)
