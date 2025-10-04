@@ -1164,14 +1164,19 @@ ig_close_session <- function(auth, mock_response = NULL) {
   if (is.null(auth) || !is.list(auth) || is.null(auth$base_url)) {
     stop("`auth` must be a list returned from ig_auth() with a base_url element.")
   }
-
+  
   path <- "/session"
-  res <- .ig_request(
-    path = path,
-    auth = auth,
-    method = "DELETE",
-    mock_response = mock_response
-  )
+  tryCatch({
+    .ig_request(
+      path = path,
+      auth = auth,
+      method = "DELETE",
+      mock_response = mock_response
+    )
+  }, error = function(e) {
+    # Suppress parse errors silently
+    invisible(NULL)
+  })
   
   invisible(TRUE)
 }
