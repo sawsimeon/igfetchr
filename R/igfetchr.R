@@ -238,7 +238,11 @@ ig_search_markets <- function(query, auth, mock_response = NULL) {
   # Return as tibble
   markets = tibble::as_tibble(res)
   
-  purrr::map_dfr(markets$markets, tibble::as_tibble)
+  tibble::as_tibble(
+    do.call(rbind, lapply(markets$markets, function(x) {
+      tibble::as_tibble(x)
+    }))
+  )
 }
 
 #' Get market details for one or more epics
