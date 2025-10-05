@@ -11,9 +11,7 @@ LazyData: true
 Imports:
     httr,
     jsonlite,
-    tibble,
-    purrr,
-    dplyr
+    tibble
 Suggests:
     testthat (>= 3.0.0),
     knitr,
