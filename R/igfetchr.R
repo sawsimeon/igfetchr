@@ -235,11 +235,14 @@ ig_search_markets <- function(query, auth, mock_response = NULL) {
     mock_response = mock_response
   )
   
-  # Return as tibble
-  markets = tibble::as_tibble(res)
+  # Check if response has markets field
+  if (is.null(res$markets)) {
+    return(tibble::tibble(epic = character(), name = character()))
+  }
   
+  # Convert markets list to tibble
   tibble::as_tibble(
-    do.call(rbind, lapply(markets$markets, function(x) {
+    do.call(rbind, lapply(res$markets, function(x) {
       tibble::as_tibble(x)
     }))
   )
@@ -335,54 +338,54 @@ ig_get_markets_by_epic <- function(epics, auth, detailed = TRUE, mock_response =
   # Allow tests to bypass network
   if (!is.null(mock_response)) {
     if (is.list(mock_response) && !is.null(mock_response$marketDetails)) {
-      return(tibble::as_tibble(mock_response$marketDetails))
+      res <- mock_response
+    } else {
+      res <- list(marketDetails = mock_response)
     }
-    return(tibble::as_tibble(mock_response))
-  }
-  if (identical(Sys.getenv("IGFETCHR_TESTING"), "true")) {
+  } else if (identical(Sys.getenv("IGFETCHR_TESTING"), "true")) {
     stop("Network calls disabled during tests. Provide `mock_response` to simulate market fetch.")
-  }
-  
-  if (is.null(auth) || !is.list(auth) || is.null(auth$base_url)) {
-    stop("`auth` must be a list returned from ig_auth() with a base_url element.")
-  }
-  
-  # Construct query
-  query <- list(
-    epics = paste(epics, collapse = ","),
-    filter = if (detailed) "ALL" else "SNAPSHOT_ONLY"
-  )
-  
-  # Call .ig_request() and inspect raw response
-  res <- tryCatch(
-    {
-      res <- .ig_request(
-        path = "/markets",
-        auth = auth,
-        method = "GET",
-        query = query,
-        version = "2"
-      )
-      if (verbose) {
-        message("Raw response from /markets: ", jsonlite::toJSON(res, pretty = TRUE, auto_unbox = TRUE))
-      }
-      res
-    },
-    error = function(e) {
-      stop("Failed to fetch market details for epics '", paste(epics, collapse = ", "), "': ", e$message)
+  } else {
+    if (is.null(auth) || !is.list(auth) || is.null(auth$base_url)) {
+      stop("`auth` must be a list returned from ig_auth() with a base_url element.")
     }
-  )
+    
+    # Construct query
+    query <- list(
+      epics = paste(epics, collapse = ","),
+      filter = if (detailed) "ALL" else "SNAPSHOT_ONLY"
+    )
+    
+    # Call .ig_request() and inspect raw response
+    res <- tryCatch(
+      {
+        res <- .ig_request(
+          path = "/markets",
+          auth = auth,
+          method = "GET",
+          query = query,
+          version = "2"
+        )
+        if (verbose) {
+          message("Raw response from /markets: ", jsonlite::toJSON(res, pretty = TRUE, auto_unbox = TRUE))
+        }
+        res
+      },
+      error = function(e) {
+        stop("Failed to fetch market details for epics '", paste(epics, collapse = ", "), "': ", e$message)
+      }
+    )
+  }
   
   # Check for marketDetails
   if (!is.list(res) || is.null(res$marketDetails)) {
     warning("No marketDetails in response for epics '", paste(epics, collapse = ", "), "'. Response: ", toString(names(res)))
-    return(tibble::tibble())
+    return(tibble::tibble(instrument = list(), dealingRules = list(), snapshot = list()))
   }
   
   # Check if marketDetails is empty
   if (length(res$marketDetails) == 0) {
     warning("Empty marketDetails list for epics '", paste(epics, collapse = ", "), "'.")
-    return(tibble::tibble())
+    return(tibble::tibble(instrument = list(), dealingRules = list(), snapshot = list()))
   }
   
   # Ensure all entries have expected fields
@@ -392,7 +395,7 @@ ig_get_markets_by_epic <- function(epics, auth, detailed = TRUE, mock_response =
   if (!all(valid_details)) {
     warning("Some market details missing expected fields (instrument, dealingRules, snapshot) for epics '",
             paste(epics, collapse = ", "), "'. Response: ", toString(names(res$marketDetails)))
-    return(tibble::tibble())
+    return(tibble::tibble(instrument = list(), dealingRules = list(), snapshot = list()))
   }
   
   # Convert to tibble with explicit columns
@@ -462,11 +465,14 @@ ig_get_price <- function(epic, auth, mock_response = NULL) {
       stop("Failed to fetch price for epic '", epic, "': ", e$message)
     }
   )
-
+  
+  # Check if response has snapshot field
+  if (is.null(res$snapshot)) {
+    return(tibble::tibble(bid = numeric(), offer = numeric()))
+  }
+  
   # Return as tibble
   tibble::as_tibble(purrr::map(res$snapshot, ~ if (is.null(.x)) NA else .x))
-  
-  
 }
 
 #' Get historical prices for a market
