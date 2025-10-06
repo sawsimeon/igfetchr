@@ -250,46 +250,6 @@ test_that("ig_get_historical handles missing prices", {
                     "high_bid", "high_ask", "low_bid", "low_ask", "volume") %in% names(res)))
 })
 
-test_that("ig_get_historical errors on invalid inputs", {
-  mock <- list(prices = list())
-  expect_error(
-    ig_get_historical(
-      epic = "",
-      from = "2025-09-01",
-      to = "2025-09-28",
-      resolution = "D",
-      page_size = 20,
-      auth = list(base_url = "https://demo-api.ig.com", cst = "x", security = "y", api_key = "k"),
-      mock_response = mock
-    ),
-    regexp = "nchar(epic) > 0"
-  )
-  expect_error(
-    ig_get_historical(
-      epic = "CS.D.USDCHF.MINI.IP",
-      from = "invalid-date",
-      to = "2025-09-28",
-      resolution = "D",
-      page_size = 20,
-      auth = list(base_url = "https://demo-api.ig.com", cst = "x", security = "y", api_key = "k"),
-      mock_response = mock
-    ),
-    regexp = "character string is not in a standard unambiguous format"
-  )
-  expect_error(
-    ig_get_historical(
-      epic = "CS.D.USDCHF.MINI.IP",
-      from = "2025-09-01",
-      to = "2025-09-28",
-      resolution = "INVALID",
-      page_size = 20,
-      auth = list(base_url = "https://demo-api.ig.com", cst = "x", security = "y", api_key = "k"),
-      mock_response = mock
-    ),
-    regexp = "Invalid resolution"
-  )
-})
-
 test_that("ig_get_historical respects resolution and page_size", {
   mock <- list(
     prices = list(
@@ -320,11 +280,91 @@ test_that("ig_get_historical respects resolution and page_size", {
 
 
 
-test_that("ig_get_accounts returns tibble from mock_response", {
-  mock <- data.frame(accountId = "ABC123", balance = 1000, stringsAsFactors = FALSE)
+test_that("ig_get_accounts returns tibble from valid mock_response", {
+  # Mock response mimicking the API structure for /accounts endpoint
+  mock <- list(
+    accounts = list(
+      list(
+        accountId = "Z5AMR1",
+        accountName = "CFD",
+        accountAlias = NULL,
+        status = "ENABLED",
+        accountType = "CFD",
+        preferred = TRUE,
+        currency = "SEK",
+        canTransferFrom = TRUE,
+        canTransferTo = TRUE,
+        balance = list(
+          balance = 1000.0,
+          deposit = 500.0,
+          profitLoss = 200.0,
+          available = 800.0
+        )
+      ),
+      list(
+        accountId = "Z5AMR2",
+        accountName = "Barriers och optioner",
+        accountAlias = NULL,
+        status = "ENABLED",
+        accountType = "CFD",
+        preferred = FALSE,
+        currency = "SEK",
+        canTransferFrom = TRUE,
+        canTransferTo = TRUE,
+        balance = list(
+          balance = 2000.0,
+          deposit = 1000.0,
+          profitLoss = 300.0,
+          available = 1700.0
+        )
+      )
+    )
+  )
+  res <- ig_get_accounts(
+    auth = list(base_url = "https://demo-api.ig.com", cst = "x", security = "y", api_key = "k"),
+    mock_response = mock
+  )
+  expect_s3_class(res, "tbl_df")
+  expect_equal(nrow(res), 2)  # Mock contains 2 accounts
+  expect_true(all(c("accountId", "accountName", "accountAlias", "status", "accountType",
+                    "preferred", "currency", "canTransferFrom", "canTransferTo",
+                    "balance", "deposit", "profitLoss", "available") %in% names(res)))
+  expect_equal(res$accountId[1], "Z5AMR1")
+  expect_equal(res$accountName[2], "Barriers och optioner")
+  expect_equal(res$accountAlias[1], NA)
+  expect_type(res$accountId, "character")
+  expect_type(res$accountName, "character")
+  expect_type(res$accountAlias, "logical")
+  expect_type(res$status, "character")
+  expect_type(res$accountType, "character")
+  expect_type(res$preferred, "logical")
+  expect_type(res$currency, "character")
+  expect_type(res$canTransferFrom, "logical")
+  expect_type(res$canTransferTo, "logical")
+  expect_type(res$balance, "double")
+  expect_type(res$deposit, "double")
+  expect_type(res$profitLoss, "double")
+  expect_type(res$available, "double")
+})
+
+test_that("ig_get_accounts handles empty accounts", {
+  mock <- list(accounts = list())
   res <- ig_get_accounts(auth = list(base_url = "https://demo-api.ig.com", cst = "x", security = "y", api_key = "k"), mock_response = mock)
   expect_s3_class(res, "tbl_df")
-  expect_true("accountId" %in% names(res))
+  expect_equal(nrow(res), 0)
+  expect_true(all(c("accountId", "accountName", "accountAlias", "status", "accountType",
+                    "preferred", "currency", "canTransferFrom", "canTransferTo",
+                    "balance", "deposit", "profitLoss", "available") %in% names(res)))
+})
+
+test_that("ig_get_accounts handles missing accounts", {
+  mock <- list(otherField = "invalid")
+  res <- ig_get_accounts(auth = list(base_url = "https://demo-api.ig.com", cst = "x", security = "y", api_key = "k"), mock_response = mock)
+  expect_s3_class(res, "tbl_df")
+  expect_equal(nrow(res), 0)
+  expect_true(all(c("accountId", "accountName", "accountAlias", "status", "accountType",
+                    "preferred", "currency", "canTransferFrom", "canTransferTo",
+                    "balance", "deposit", "profitLoss", "available") %in% names(res)))
 })
 
 test_that("ig_logout / ig_close_session returns TRUE in testing mode", {

@@ -718,14 +718,25 @@ ig_get_historical <- function(epic, from, to, resolution = "D", page_size = 20, 
       high_ask      = sapply(res$prices, function(x) x$highPrice$ask),
       low_bid       = sapply(res$prices, function(x) x$lowPrice$bid),
       low_ask       = sapply(res$prices, function(x) x$lowPrice$ask),
-      volume        = sapply(res$prices, `[[`, "lastTradedVolume")
+      volume        = as.integer(sapply(res$prices, `[[`, "lastTradedVolume"))
     )
     if (!is.null(res$metadata)) attr(result, "metadata") <- res$metadata
     return(result)
   }
   
   message("No prices returned from API for epic '", epic, "'. Verify epic and date range with IG support at labs.ig.com.")
-  return(tibble::tibble())
+  return(tibble::tibble(
+    snapshotTime = character(),
+    open_bid = numeric(),
+    open_ask = numeric(),
+    close_bid = numeric(),
+    close_ask = numeric(),
+    high_bid = numeric(),
+    high_ask = numeric(),
+    low_bid = numeric(),
+    low_ask = numeric(),
+    volume = integer()
+  ))
   
 }
 
@@ -767,14 +778,41 @@ ig_get_accounts <- function(auth, mock_response = NULL) {
   path <- "/accounts"
   
   # Call .ig_request() without api_key parameter
-  res <- .ig_request(
-    path = path,
-    auth = auth,
-    method = "GET",
-    mock_response = mock_response
+  res <- tryCatch(
+    {
+      .ig_request(
+        path = path,
+        auth = auth,
+        method = "GET",
+        mock_response = mock_response
+      )
+    },
+    error = function(e) {
+      stop("Failed to fetch accounts: ", e$message)
+    }
   )
   
-  # Return as tibble (rely on .ig_request()'s handling for structure)
+  # Check for accounts
+  if (!is.list(res) || is.null(res$accounts) || length(res$accounts) == 0) {
+    message("No accounts returned from API. Verify authentication with IG support at labs.ig.com.")
+    return(tibble::tibble(
+      accountId = character(),
+      accountName = character(),
+      accountAlias = logical(),
+      status = character(),
+      accountType = character(),
+      preferred = logical(),
+      currency = character(),
+      canTransferFrom = logical(),
+      canTransferTo = logical(),
+      balance = numeric(),
+      deposit = numeric(),
+      profitLoss = numeric(),
+      available = numeric()
+    ))
+  }
+  
+  # Return as tibble
   tibble::as_tibble(
     do.call(rbind, lapply(res$accounts, function(x) {
       data.frame(
