@@ -109,24 +109,18 @@ ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
   )
 }
 
-#' Internal function to make IG API requests
+#' Internal function to make HTTP requests to IG API
 #'
-#' Makes HTTP requests to the IG API using authentication details from `ig_auth()`.
-#' Handles GET, POST, and DELETE methods and returns the parsed JSON response.
-#' Not intended for direct use; called by higher-level functions like `ig_get_accounts()`.
+#' @param path Character. API endpoint path (e.g., "/positions/otc").
+#' @param auth List. Authentication details from ig_auth().
+#' @param method Character. HTTP method ("GET", "POST", "PUT", "DELETE").
+#' @param query List. Query parameters for GET requests. Defaults to list().
+#' @param body List. Request body for POST or PUT requests. Defaults to NULL.
+#' @param version Character. API version ("1", "2", "3"). Defaults to NULL.
+#' @param mock_response List or data frame. Optional mock response for testing, bypassing the API call.
 #'
-#' @param path Character. API endpoint path (e.g., "/accounts").
-#' @param auth List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.
-#' @param method Character. HTTP method ("GET", "POST", or "DELETE"). Defaults to "GET".
-#' @param query List. Optional query parameters for GET requests.
-#' @param body List. Optional request body for POST requests.
-#' @param version Character. API version ("1", "2", or "3"). If NULL, no VERSION header is sent. Defaults to NULL.
-#' @param mock_response List or data frame. Optional mock response for testing.
-#'
-#' @return The parsed JSON response as a list or tibble, depending on the structure. If the response cannot be converted to a data frame, returns the raw JSON as a list.
-#'
-#' @keywords internal
-.ig_request <- function(path, auth, method = c("GET", "POST", "DELETE"), query = list(), body = NULL, version = NULL, mock_response = NULL) {
+#' @return List with API response or tibble if mock_response is a data frame.
+.ig_request <- function(path, auth, method = c("GET", "POST", "PUT", "DELETE"), query = list(), body = NULL, version = NULL, mock_response = NULL) {
   method <- match.arg(method)
   if (!is.null(mock_response)) {
     if (is.data.frame(mock_response)) {
@@ -168,6 +162,7 @@ ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
       method,
       GET = httr::GET(url, headers, query = query),
       POST = httr::POST(url, headers, body = jsonlite::toJSON(body, auto_unbox = TRUE), encode = "json"),
+      PUT = httr::PUT(url, headers, body = jsonlite::toJSON(body, auto_unbox = TRUE), encode = "json"),
       DELETE = httr::DELETE(url, headers)
     )
   }, error = function(e) {
@@ -971,55 +966,32 @@ ig_get_options <- function(auth, mock_response = NULL) {
 
 #' Execute a trade (place OTC position)
 #'
-#' Places an immediate market trade (BUY/SELL) for a specified market epic using the IG API `/positions/otc` endpoint (version 2).
-#' The currency code and expiry are automatically determined from the market's instrument details unless specified.
-#' For testing, use `mock_response` to avoid network calls.
+#' Places a market trade using the IG API `/positions/otc` endpoint (version 2).
+#' If stops/limits fail, falls back to placing the trade without them and adding via PUT.
 #'
 #' @param epic Character. Market epic (e.g., "CS.D.USDCHF.MINI.IP").
-#' @param direction Character. Trade direction, either "BUY" or "SELL".
+#' @param direction Character. "BUY" or "SELL".
 #' @param size Numeric. Trade size (units).
-#' @param auth List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.
-#' @param currency_code Character. Currency code for the trade (e.g., "CHF"). If NULL, determined from the market's instrument details. Defaults to NULL.
-#' @param expiry Character. Expiry date for the instrument (e.g., "-"). If NULL, defaults to "-" for non-expiring instruments or fetched from market details. Defaults to NULL.
-#' @param guaranteed_stop Logical. Whether to set a guaranteed stop. Defaults to FALSE.
-#' @param level Numeric. Price level for the order (for LIMIT orders). Defaults to NULL (market order).
-#' @param time_in_force Character. Time in force for the order, either "EXECUTE_AND_ELIMINATE" or "FILL_OR_KILL". Defaults to "FILL_OR_KILL".
-#' @param order_type Character. Order type, either "MARKET" or "LIMIT". Defaults to "MARKET".
-#' @param limit_distance Numeric. Distance to limit price in points (for MARKET orders). Defaults to NULL.
-#' @param limit_level Numeric. Limit price for the trade. Defaults to NULL.
-#' @param stop_distance Numeric. Distance to stop price in points (for MARKET orders). Defaults to NULL.
-#' @param stop_level Numeric. Stop price for the trade. Defaults to NULL.
-#' @param deal_reference Character. Custom deal reference (optional). Defaults to NULL.
-#' @param force_open Logical. Whether to force a new position if an opposite position exists. Defaults to TRUE if limit_distance/stop_distance or limit_level/stop_level are specified, per IG API requirements.
-#' @param mock_response List or data frame. Optional mock response for testing, bypassing the API call.
+#' @param auth List. Authentication details from `ig_auth()`.
+#' @param currency_code Character. Currency code (e.g., "CHF"). Defaults to NULL.
+#' @param expiry Character. Expiry date (e.g., "-"). Defaults to NULL.
+#' @param guaranteed_stop Logical. Use guaranteed stop. Defaults to FALSE.
+#' @param level Numeric. Price level for LIMIT orders. Defaults to NULL.
+#' @param time_in_force Character. "EXECUTE_AND_ELIMINATE" or "FILL_OR_KILL". Defaults to "FILL_OR_KILL".
+#' @param order_type Character. "MARKET" or "LIMIT". Defaults to "MARKET".
+#' @param limit_distance Numeric. Limit distance in points. Defaults to NULL.
+#' @param limit_level Numeric. Limit price. Defaults to NULL.
+#' @param stop_distance Numeric. Stop distance in points. Defaults to NULL.
+#' @param stop_level Numeric. Stop price. Defaults to NULL.
+#' @param deal_reference Character. Custom deal reference. Defaults to NULL.
+#' @param force_open Logical. Force new position. Defaults to TRUE if stops/limits specified.
+#' @param mock_response List or data frame. Mock response for testing.
 #'
-#' @return A tibble with trade confirmation details, including columns like `dealId`, `dealReference`, `status`, and others as returned by the IG API `/confirms/{dealReference}` endpoint.
-#'
-#' @note For forex instruments like `CS.D.USDCHF.MINI.IP`, use `limit_distance` and `stop_distance` with `force_open = TRUE` for MARKET orders, as required by the IG API (version 2). If issues persist, place the trade without stops/limits and add them via the edit position endpoint.
+#' @return A tibble with trade confirmation details (e.g., `dealId`, `dealReference`).
 #'
 #' @examples
 #' \dontrun{
-#' # Assume auth is set up via ig_auth()
-#' auth <- ig_auth(
-#'   api_key = "your_api_key",
-#'   username = "your_username",
-#'   password = "your_password",
-#'   base_url = "https://demo-api.ig.com"
-#' )
-#'
-#' # Example 1: Basic market order (no stops/limits)
-#' res <- ig_execute_trade(
-#'   epic = "CS.D.USDCHF.MINI.IP",
-#'   direction = "BUY",
-#'   size = 1.0,
-#'   auth = auth,
-#'   currency_code = "CHF",
-#'   order_type = "MARKET",
-#'   time_in_force = "FILL_OR_KILL"
-#' )
-#' print(res)  # Returns tibble with dealId, dealReference, etc.
-#'
-#' # Example 2: Market order with non-guaranteed stop/limit (200 pips)
+#' auth <- ig_auth(api_key = "your_api_key", username = "your_username", password = "your_password", base_url = "https://demo-api.ig.com")
 #' res <- ig_execute_trade(
 #'   epic = "CS.D.USDCHF.MINI.IP",
 #'   direction = "BUY",
@@ -1028,54 +1000,12 @@ ig_get_options <- function(auth, mock_response = NULL) {
 #'   currency_code = "CHF",
 #'   order_type = "MARKET",
 #'   time_in_force = "FILL_OR_KILL",
-#'   limit_distance = 2000,  # 200 pips
-#'   stop_distance = 2000,   # 200 pips
+#'   limit_distance = 2000,
+#'   stop_distance = 2000,
 #'   guaranteed_stop = FALSE,
 #'   force_open = TRUE
 #' )
-#' print(res)  # Returns tibble with dealId, dealReference, etc.
-#'
-#' # Example 3: Market order with guaranteed stop (2% + 25 points)
-#' res <- ig_execute_trade(
-#'   epic = "CS.D.USDCHF.MINI.IP",
-#'   direction = "BUY",
-#'   size = 1.0,
-#'   auth = auth,
-#'   currency_code = "CHF",
-#'   order_type = "MARKET",
-#'   time_in_force = "FILL_OR_KILL",
-#'   limit_distance = 2000,  # 200 pips
-#'   stop_distance = 184,    # 159 points (2% of 0.795) + 25 points
-#'   guaranteed_stop = TRUE,
-#'   force_open = TRUE
-#' )
-#' print(res)  # Returns tibble with dealId, dealReference, etc.
-#'
-#' # Example 4: Fallback - Place trade, then add stops/limits
-#' res <- ig_execute_trade(
-#'   epic = "CS.D.USDCHF.MINI.IP",
-#'   direction = "BUY",
-#'   size = 1.0,
-#'   auth = auth,
-#'   currency_code = "CHF",
-#'   order_type = "MARKET",
-#'   time_in_force = "FILL_OR_KILL",
-#'   force_open = TRUE
-#' )
-#' deal_id <- res$dealId
-#' # Add stops/limits via edit position endpoint
-#' edit_res <- .ig_request(
-#'   path = paste0("/positions/", deal_id, "/otc"),
-#'   auth = auth,
-#'   method = "PUT",
-#'   body = list(
-#'     limitLevel = 0.995,  # 200 pips above 0.795
-#'     stopLevel = 0.7766,  # 184 points below 0.795
-#'     guaranteedStop = TRUE
-#'   ),
-#'   version = "2"
-#' )
-#' print(edit_res)  # Returns updated position details
+#' print(res)
 #' }
 #'
 #' @export
@@ -1085,207 +1015,63 @@ ig_execute_trade <- function(epic, direction, size, auth, currency_code = NULL, 
                              stop_level = NULL, deal_reference = NULL, force_open = NULL, 
                              mock_response = NULL) {
   
-  # Input validation with explicit checks
-  if (!is.character(epic) || nchar(epic) == 0) {
-    stop("`epic` must be a non-empty character string.")
-  }
-  if (!is.character(direction) || !direction %in% c("BUY", "SELL")) {
-    stop("`direction` must be either 'BUY' or 'SELL'.")
-  }
-  if (!is.numeric(size) || size <= 0) {
-    stop("`size` must be a positive numeric value.")
-  }
-  if (!is.logical(guaranteed_stop)) {
-    stop("`guaranteed_stop` must be a logical value.")
-  }
-  if (!is.character(time_in_force) || !time_in_force %in% c("EXECUTE_AND_ELIMINATE", "FILL_OR_KILL")) {
-    stop("`time_in_force` must be either 'EXECUTE_AND_ELIMINATE' or 'FILL_OR_KILL'.")
-  }
-  if (!is.character(order_type) || !order_type %in% c("MARKET", "LIMIT")) {
-    stop("`order_type` must be either 'MARKET' or 'LIMIT'.")
-  }
-  if (!is.null(force_open) && !is.logical(force_open)) {
-    stop("`force_open` must be a logical value or NULL.")
-  }
-  if (!is.null(currency_code) && !is.character(currency_code)) {
-    stop("`currency_code` must be a character string or NULL.")
-  }
-  if (!is.null(expiry) && !is.character(expiry)) {
-    stop("`expiry` must be a character string or NULL.")
-  }
-  if (!is.null(level) && !is.numeric(level)) {
-    stop("`level` must be a numeric value or NULL.")
-  }
-  if (!is.null(limit_distance) && (!is.numeric(limit_distance) || limit_distance <= 0)) {
-    stop("`limit_distance` must be a positive numeric value or NULL.")
-  }
-  if (!is.null(limit_level) && !is.numeric(limit_level)) {
-    stop("`limit_level` must be a numeric value or NULL.")
-  }
-  if (!is.null(stop_distance) && (!is.numeric(stop_distance) || stop_distance <= 0)) {
-    stop("`stop_distance` must be a positive numeric value or NULL.")
-  }
-  if (!is.null(stop_level) && !is.numeric(stop_level)) {
-    stop("`stop_level` must be a numeric value or NULL.")
-  }
-  if (!is.null(deal_reference) && !is.character(deal_reference)) {
-    stop("`deal_reference` must be a character string or NULL.")
+  # Input validation
+  stopifnot(
+    is.character(epic) && nchar(epic) > 0,
+    is.character(direction) && direction %in% c("BUY", "SELL"),
+    is.numeric(size) && size > 0,
+    is.logical(guaranteed_stop),
+    is.character(time_in_force) && time_in_force %in% c("EXECUTE_AND_ELIMINATE", "FILL_OR_KILL"),
+    is.character(order_type) && order_type %in% c("MARKET", "LIMIT"),
+    is.null(force_open) || is.logical(force_open),
+    is.null(currency_code) || is.character(currency_code),
+    is.null(expiry) || is.character(expiry),
+    is.null(level) || is.numeric(level),
+    is.null(limit_distance) || (is.numeric(limit_distance) && limit_distance > 0),
+    is.null(limit_level) || is.numeric(limit_level),
+    is.null(stop_distance) || (is.numeric(stop_distance) && stop_distance > 0),
+    is.null(stop_level) || is.numeric(stop_level),
+    is.null(deal_reference) || (is.character(deal_reference) && grepl("^[A-Za-z0-9_-]{1,30}$", deal_reference))
+  )
+  
+  # Set force_open
+  force_open <- if (is.null(force_open)) {
+    !is.null(limit_distance) || !is.null(stop_distance) || !is.null(limit_level) || !is.null(stop_level)
+  } else {
+    force_open
   }
   
-  # Set force_open to TRUE if stop/limit parameters are provided (per IG API requirement)
-  if (is.null(force_open) && (!is.null(limit_distance) || !is.null(stop_distance) || !is.null(limit_level) || !is.null(stop_level))) {
-    force_open <- TRUE
-    message("Setting force_open = TRUE as required for stop/limit parameters in IG API (version 2) for epic '", epic, "'.")
-  } else if (is.null(force_open)) {
-    force_open <- FALSE
-  }
-  
-  # Validate parameter combinations
-  if (order_type == "MARKET" && (!is.null(limit_level) || !is.null(stop_level))) {
-    message("Using limit_level/stop_level for MARKET order for epic '", epic, "'. Prefer limit_distance/stop_distance with force_open = TRUE.")
-  }
-  if (order_type == "LIMIT" && (!is.null(limit_distance) || !is.null(stop_distance))) {
-    stop("For LIMIT orders, use limit_level and stop_level instead of limit_distance and stop_distance for epic '", epic, "'.")
-  }
-  if (!is.null(limit_distance) && !is.null(limit_level)) {
-    stop("Cannot specify both limit_distance and limit_level for epic '", epic, "'.")
-  }
-  if (!is.null(stop_distance) && !is.null(stop_level)) {
-    stop("Cannot specify both stop_distance and stop_level for epic '", epic, "'.")
-  }
-  
-  # Allow tests to bypass network
+  # Handle mock response
   if (!is.null(mock_response)) {
     mock_response <- lapply(mock_response, function(x) if (is.null(x)) NA else x)
     return(tibble::as_tibble(mock_response))
   }
   if (identical(Sys.getenv("IGFETCHR_TESTING"), "true")) {
-    stop("Network calls disabled during tests. Provide `mock_response` to simulate a trade.")
+    stop("Network calls disabled during tests. Provide `mock_response`.")
   }
-  
   if (is.null(auth) || !is.list(auth) || is.null(auth$base_url) || is.null(auth$api_key) || is.null(auth$cst) || is.null(auth$security)) {
-    stop("`auth` must be a list returned from ig_auth() with base_url, api_key, cst, and security elements.")
+    stop("`auth` must be a list from ig_auth() with base_url, api_key, cst, and security.")
   }
   
-  # Fetch currency code, expiry, and price constraints
-  market <- tryCatch(
-    {
-      ig_get_markets_by_epic(epic, auth, detailed = TRUE)
-    },
-    error = function(e) {
-      message("Failed to fetch market details for epic '", epic, "': ", e$message, ". Using default currency 'CHF' and expiry '-'.")
-      return(NULL)
-    }
-  )
+  # Fetch market data
+  market <- tryCatch(ig_get_markets_by_epic(epic, auth, detailed = TRUE), error = function(e) NULL)
   
   # Initialize defaults
-  min_stop_distance <- 4
-  min_controlled_risk_distance <- 2
-  controlled_risk_spacing <- 25
-  scaling_factor <- 10000
-  current_price <- 0.795  # Default to known price if market data fails
-  market_status <- "UNKNOWN"
+  currency_code <- currency_code %||% (market$instrument[[1]]$currencies[[1]]$code %||% "CHF")
+  expiry <- expiry %||% (market$instrument[[1]]$expiry %||% "-")
+  scaling_factor <- market$snapshot$scalingFactor %||% 10000
+  current_price <- if (direction == "BUY") market$snapshot$bid %||% 0.795 else market$snapshot$offer %||% 0.795
   
-  if (!is.null(market) && nrow(market) > 0 && is.list(market$instrument) && length(market$instrument[[1]]$currencies) > 0) {
-    currency_code <- ifelse(is.null(currency_code), 
-                            ifelse(is.null(market$instrument[[1]]$currencies[[1]]$code), "CHF", market$instrument[[1]]$currencies[[1]]$code), 
-                            currency_code)
-    if (!is.character(currency_code) || nchar(currency_code) == 0) {
-      message("No valid currency code found for epic '", epic, "'. Using default currency 'CHF'.")
-      currency_code <- "CHF"
-    }
-    expiry <- ifelse(is.null(expiry), 
-                     ifelse(is.null(market$instrument[[1]]$expiry), "-", market$instrument[[1]]$expiry), 
-                     expiry)
-    if (!is.character(expiry) || nchar(expiry) == 0) {
-      message("No valid expiry found for epic '", epic, "'. Using default expiry '-'.")
-      expiry <- "-"
-    }
-    min_stop_distance <- ifelse(is.null(market$dealingRules[[1]]$minNormalStopOrLimitDistance$value), 
-                                4, market$dealingRules[[1]]$minNormalStopOrLimitDistance$value)
-    min_controlled_risk_distance <- ifelse(is.null(market$dealingRules[[1]]$minControlledRiskStopDistance$value), 
-                                           2, market$dealingRules[[1]]$minControlledRiskStopDistance$value)
-    controlled_risk_spacing <- ifelse(is.null(market$dealingRules[[1]]$controlledRiskSpacing$value), 
-                                      25, market$dealingRules[[1]]$controlledRiskSpacing$value)
-    scaling_factor <- ifelse(is.null(market$snapshot$scalingFactor), 
-                             10000, market$snapshot$scalingFactor)
-    current_price <- ifelse(direction == "BUY", 
-                            ifelse(is.null(market$snapshot$bid), 0.795, market$snapshot$bid), 
-                            ifelse(is.null(market$snapshot$offer), 0.795, market$snapshot$offer))
-    market_status <- ifelse(is.null(market$snapshot$marketStatus), "UNKNOWN", market$snapshot$marketStatus)
-  } else {
-    currency_code <- ifelse(is.null(currency_code), "CHF", currency_code)
-    expiry <- ifelse(is.null(expiry), "-", expiry)
-    message("No market data available for epic '", epic, "'. Using defaults: currency 'CHF', expiry '-', min_stop_distance 4 pips, current_price 0.795.")
-  }
-  
-  if (market_status != "TRADEABLE") {
-    message("Market '", epic, "' is not tradeable (status: ", market_status, "). Trade may fail.")
-  }
-  
-  # Convert distances to levels for validation
-  pip_value <- 0.0001 / scaling_factor  # 0.00000001 for USD/CHF
+  # Convert distances to levels for POST
+  pip_value <- 0.0001 / scaling_factor
   if (!is.null(limit_distance) && is.null(limit_level)) {
-    limit_distance_pips <- limit_distance * pip_value * scaling_factor / 0.0001  # Convert to pips
-    min_distance <- if (guaranteed_stop) min_controlled_risk_distance * current_price + controlled_risk_spacing else min_stop_distance
-    if (limit_distance_pips < min_distance) {
-      message("limit_distance (", limit_distance_pips, " pips) is below minimum (", min_distance, " pips). Adjusting to minimum.")
-      limit_distance <- min_distance * 0.0001 / pip_value / scaling_factor
-    }
-    limit_level <- if (direction == "BUY") {
-      current_price + (limit_distance * pip_value * scaling_factor)
-    } else {
-      current_price - (limit_distance * pip_value * scaling_factor)
-    }
-    message("Converted limit_distance (", limit_distance, " points) to limit_level (", limit_level, ") for validation of epic '", epic, "'.")
+    limit_level <- if (direction == "BUY") current_price + (limit_distance * pip_value * scaling_factor) else current_price - (limit_distance * pip_value * scaling_factor)
   }
   if (!is.null(stop_distance) && is.null(stop_level)) {
-    stop_distance_pips <- stop_distance * pip_value * scaling_factor / 0.0001  # Convert to pips
-    min_distance <- if (guaranteed_stop) min_controlled_risk_distance * current_price + controlled_risk_spacing else min_stop_distance
-    if (stop_distance_pips < min_distance) {
-      message("stop_distance (", stop_distance_pips, " pips) is below minimum (", min_distance, " pips). Adjusting to minimum.")
-      stop_distance <- min_distance * 0.0001 / pip_value / scaling_factor
-    }
-    stop_level <- if (direction == "BUY") {
-      current_price - (stop_distance * pip_value * scaling_factor)
-    } else {
-      current_price + (stop_distance * pip_value * scaling_factor)
-    }
-    message("Converted stop_distance (", stop_distance, " points) to stop_level (", stop_level, ") for validation of epic '", epic, "'.")
+    stop_level <- if (direction == "BUY") current_price - (stop_distance * pip_value * scaling_factor) else current_price + (stop_distance * pip_value * scaling_factor)
   }
   
-  # Validate limit_level and stop_level
-  if (!is.null(limit_level) || !is.null(stop_level)) {
-    min_distance <- if (guaranteed_stop) min_controlled_risk_distance * current_price + controlled_risk_spacing else min_stop_distance
-    if (!is.null(limit_level)) {
-      limit_distance_pips <- if (direction == "BUY") {
-        (limit_level - current_price) / (pip_value * scaling_factor)
-      } else {
-        (current_price - limit_level) / (pip_value * scaling_factor)
-      }
-      if (limit_distance_pips < min_distance) {
-        stop("limit_level (", limit_level, ") is too close to current price (", current_price, "), requires minimum ", min_distance, " pips for epic '", epic, "'.")
-      }
-      if ((direction == "BUY" && limit_level <= current_price) || (direction == "SELL" && limit_level >= current_price)) {
-        stop("limit_level (", limit_level, ") is invalid for ", direction, " order with current price (", current_price, ").")
-      }
-    }
-    if (!is.null(stop_level)) {
-      stop_distance_pips <- if (direction == "BUY") {
-        (current_price - stop_level) / (pip_value * scaling_factor)
-      } else {
-        (stop_level - current_price) / (pip_value * scaling_factor)
-      }
-      if (stop_distance_pips < min_distance) {
-        stop("stop_level (", stop_level, ") is too close to current price (", current_price, "), requires minimum ", min_distance, " pips for epic '", epic, "'.")
-      }
-      if ((direction == "BUY" && stop_level >= current_price) || (direction == "SELL" && stop_level <= current_price)) {
-        stop("stop_level (", stop_level, ") is invalid for ", direction, " order with current price (", current_price, ").")
-      }
-    }
-  }
-  
-  # Construct request body
+  # Construct request body with levels only
   body <- list(
     epic = epic,
     direction = direction,
@@ -1300,11 +1086,9 @@ ig_execute_trade <- function(epic, direction, size, auth, currency_code = NULL, 
   if (!is.null(level)) body$level <- level
   if (!is.null(limit_level)) body$limitLevel <- limit_level
   if (!is.null(stop_level)) body$stopLevel <- stop_level
-  if (!is.null(limit_distance) && is.finite(limit_distance)) body$limitDistance <- limit_distance
-  if (!is.null(stop_distance) && is.finite(stop_distance)) body$stopDistance <- stop_distance
   if (!is.null(deal_reference)) body$dealReference <- deal_reference
   
-  # Execute trade
+  # Try trade with stops/limits, fall back if it fails
   res <- tryCatch(
     {
       .ig_request(
@@ -1316,25 +1100,121 @@ ig_execute_trade <- function(epic, direction, size, auth, currency_code = NULL, 
       )
     },
     error = function(e) {
-      stop("Failed to execute trade: ", e$message, ". Verify currencyCode (", currency_code, "), limit_distance/stop_distance or limit_level/stop_level (minimum ", min_stop_distance, " pips, or ", min_controlled_risk_distance * current_price + controlled_risk_spacing, " points for guaranteed stops), force_open = TRUE, and market status (", market_status, ") for '", epic, "'. Contact IG support at labs.ig.com if the issue persists.")
+      if (grepl("validation.mutual-exclusive-set-value.request", e$message) && 
+          (!is.null(limit_level) || !is.null(stop_level))) {
+        message("Falling back to trade without stops/limits due to: ", e$message)
+        body_fallback <- list(
+          epic = epic,
+          direction = direction,
+          size = size,
+          currencyCode = currency_code,
+          expiry = expiry,
+          orderType = order_type,
+          guaranteedStop = "false",
+          forceOpen = tolower(force_open),
+          timeInForce = time_in_force
+        )
+        if (!is.null(deal_reference)) body_fallback$dealReference <- deal_reference
+        
+        res_fallback <- tryCatch(
+          .ig_request(
+            path = "/positions/otc",
+            auth = auth,
+            method = "POST",
+            body = body_fallback,
+            version = "2"
+          ),
+          error = function(e2) stop("Fallback trade failed: ", e2$message)
+        )
+        
+        deal_ref <- res_fallback$dealReference
+        if (!is.character(deal_ref) || nchar(deal_ref) > 30 || nchar(deal_ref) == 0 || !grepl("^[A-Za-z0-9_-]{1,30}$", deal_ref)) {
+          message("Invalid dealReference '", deal_ref, "'. Returning trade response.")
+          res_fallback <- lapply(res_fallback, function(x) if (is.null(x)) NA else x)
+          return(tibble::as_tibble(res_fallback))
+        }
+        
+        confirm_path <- paste0("/confirms/", deal_ref)
+        confirm_res <- tryCatch(
+          .ig_request(
+            path = confirm_path,
+            auth = auth,
+            method = "GET",
+            version = "1"
+          ),
+          error = function(e3) {
+            message("Failed to fetch deal confirmation: ", e3$message)
+            res_fallback <- lapply(res_fallback, function(x) if (is.null(x)) NA else x)
+            return(tibble::as_tibble(res_fallback))
+          }
+        )
+        
+        if (!is.null(limit_level) || !is.null(stop_level)) {
+          deal_id <- confirm_res$dealId
+          if (!is.character(deal_id) || nchar(deal_id) == 0) {
+            message("Invalid dealId '", deal_id, "'. Skipping stop/limit addition.")
+            confirm_res <- lapply(confirm_res, function(x) if (is.null(x)) NA else x)
+            return(tibble::as_tibble(confirm_res))
+          }
+          
+          Sys.sleep(10) # Increased delay for position registration
+          edit_body <- list(
+            limitLevel = limit_level %||% (if (direction == "BUY") current_price + (limit_distance * pip_value * scaling_factor) else current_price - (limit_distance * pip_value * scaling_factor)),
+            stopLevel = stop_level %||% (if (direction == "BUY") current_price - (stop_distance * pip_value * scaling_factor) else current_price + (stop_distance * pip_value * scaling_factor)),
+            guaranteedStop = tolower(guaranteed_stop)
+          )
+          message("Attempting PUT with dealId: ", deal_id, ", body: ", jsonlite::toJSON(edit_body))
+          edit_res <- tryCatch(
+            .ig_request(
+              path = paste0("/positions/", deal_id, "/otc"),
+              auth = auth,
+              method = "PUT",
+              body = edit_body,
+              version = "2"
+            ),
+            error = function(e4) {
+              message("First PUT attempt failed for dealId '", deal_id, "': ", e4$message)
+              Sys.sleep(5) # Retry after additional delay
+              tryCatch(
+                .ig_request(
+                  path = paste0("/positions/", deal_id, "/otc"),
+                  auth = auth,
+                  method = "PUT",
+                  body = edit_body,
+                  version = "2"
+                ),
+                error = function(e5) {
+                  message("Retry PUT failed for dealId '", deal_id, "': ", e5$message)
+                  confirm_res <- lapply(confirm_res, function(x) if (is.null(x)) NA else x)
+                  return(tibble::as_tibble(confirm_res))
+                }
+              )
+            }
+          )
+          confirm_res$editResponse <- edit_res
+        }
+        
+        confirm_res <- lapply(confirm_res, function(x) if (is.null(x)) NA else x)
+        return(tibble::as_tibble(confirm_res))
+      }
+      stop("Failed to execute trade: ", e$message)
     }
   )
   
   # Fetch deal confirmation
-  if (is.list(res) && !is.null(res$dealReference)) {
-    deal_ref <- res$dealReference
+  deal_ref <- res$dealReference
+  if (is.character(deal_ref) && nchar(deal_ref) <= 30 && nchar(deal_ref) > 0 && grepl("^[A-Za-z0-9_-]{1,30}$", deal_ref)) {
     confirm_path <- paste0("/confirms/", deal_ref)
     confirm_res <- tryCatch(
-      {
-        .ig_request(
-          path = confirm_path,
-          auth = auth,
-          method = "GET",
-          version = "1"
-        )
-      },
+      .ig_request(
+        path = confirm_path,
+        auth = auth,
+        method = "GET",
+        version = "1"
+      ),
       error = function(e) {
-        message("Failed to fetch deal confirmation for dealReference '", deal_ref, "': ", e$message)
+        message("Failed to fetch deal confirmation: ", e$message)
+        res <- lapply(res, function(x) if (is.null(x)) NA else x)
         return(tibble::as_tibble(res))
       }
     )
@@ -1342,7 +1222,6 @@ ig_execute_trade <- function(epic, direction, size, auth, currency_code = NULL, 
     return(tibble::as_tibble(confirm_res))
   }
   
-  message("No dealReference returned in response for epic '", epic, "'. Returning raw response.")
   res <- lapply(res, function(x) if (is.null(x)) NA else x)
   return(tibble::as_tibble(res))
 }
