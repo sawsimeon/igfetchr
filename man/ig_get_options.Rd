@@ -2,7 +2,7 @@
 % Please edit documentation in R/igfetchr.R
 \name{ig_get_options}
 \alias{ig_get_options}
-\title{Get options/derivative positions}
+\title{Get options/derivatives positions}
 \usage{
 ig_get_options(auth, mock_response = NULL)
 }

@@ -14,10 +14,10 @@ ig_get_price(epic, auth, mock_response = NULL)
 \item{mock_response}{List or data frame. Optional mock response for testing, bypassing the API call.}
 }
 \value{
-A tibble with price information, including columns like `snapshotTime`, `openPrice`, `closePrice`, `highPrice`, `lowPrice`, and others as returned by the IG API `/prices/\{epic\}` endpoint.
+A tibble with price information, including columns like `marketStatus`, `bid`, `offer`, `high`, `low`, `updateTime`, and others as returned by the IG API `/markets/{epic}` endpoint.
 }
 \description{
-Fetches current price(s) for the given market epic from the IG API.
+Fetches current price(s) for the given market epic from the IG API using the `/markets/{epic}` endpoint.
 }
 \examples{
 \dontrun{
@@ -33,12 +33,16 @@ price <- ig_get_price("CS.D.USDCHF.CFD.IP", auth)
 print(price)
 
 # Using mock response for testing
-mock_response <- data.frame(
-  snapshotTime = "2025/09/23 10:00:00",
-  openPrice = 0.850,
-  closePrice = 0.851,
-  highPrice = 0.852,
-  lowPrice = 0.849
+mock_response <- list(
+  snapshot = data.frame(
+    marketStatus = "TRADEABLE",
+    bid = 0.798,
+    offer = 0.798,
+    high = 0.801,
+    low = 0.797,
+    updateTime = "2025/09/26 21:58:57",
+    binaryOdds = NA
+  )
 )
 price <- ig_get_price("CS.D.USDCHF.CFD.IP", auth, mock_response = mock_response)
 }

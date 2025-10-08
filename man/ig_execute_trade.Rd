@@ -9,52 +9,80 @@ ig_execute_trade(
   direction,
   size,
   auth,
-  limit = NULL,
-  stop = NULL,
+  currency_code = NULL,
+  expiry = NULL,
+  guaranteed_stop = FALSE,
+  level = NULL,
+  time_in_force = "FILL_OR_KILL",
+  order_type = "MARKET",
+  limit_distance = NULL,
+  limit_level = NULL,
+  stop_distance = NULL,
+  stop_level = NULL,
+  deal_reference = NULL,
+  force_open = NULL,
   mock_response = NULL
 )
 }
 \arguments{
-\item{epic}{Character. Market epic (e.g., "CS.D.USDCHF.CFD.IP").}
+\item{epic}{Character. Market epic (e.g., "CS.D.USDCHF.MINI.IP").}
 
-\item{direction}{Character. Trade direction, either "BUY" or "SELL".}
+\item{direction}{Character. "BUY" or "SELL".}
 
 \item{size}{Numeric. Trade size (units).}
 
-\item{auth}{List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.}
+\item{auth}{List. Authentication details from `ig_auth()`.}
 
-\item{limit}{Numeric. Optional limit price for the trade.}
+\item{currency_code}{Character. Currency code (e.g., "CHF"). Defaults to NULL.}
 
-\item{stop}{Numeric. Optional stop price for the trade.}
+\item{expiry}{Character. Expiry date (e.g., "-"). Defaults to NULL.}
 
-\item{mock_response}{List or data frame. Optional mock response for testing, bypassing the API call.}
+\item{guaranteed_stop}{Logical. Use guaranteed stop. Defaults to FALSE.}
+
+\item{level}{Numeric. Price level for LIMIT orders. Defaults to NULL.}
+
+\item{time_in_force}{Character. "EXECUTE_AND_ELIMINATE" or "FILL_OR_KILL". Defaults to "FILL_OR_KILL".}
+
+\item{order_type}{Character. "MARKET" or "LIMIT". Defaults to "MARKET".}
+
+\item{limit_distance}{Numeric. Limit distance in points. Defaults to NULL.}
+
+\item{limit_level}{Numeric. Limit price. Defaults to NULL.}
+
+\item{stop_distance}{Numeric. Stop distance in points. Defaults to NULL.}
+
+\item{stop_level}{Numeric. Stop price. Defaults to NULL.}
+
+\item{deal_reference}{Character. Custom deal reference. Defaults to NULL.}
+
+\item{force_open}{Logical. Force new position. Defaults to TRUE if stops/limits specified.}
+
+\item{mock_response}{List or data frame. Mock response for testing.}
 }
 \value{
-A tibble with trade confirmation details, including columns like `dealId`, `dealReference`, `status`, and others as returned by the IG API `/positions/otc` endpoint.
+A tibble with trade confirmation details (e.g., `dealId`, `dealReference`).
 }
 \description{
-Places a market trade (BUY/SELL) for a specified market epic. For testing, use `mock_response` to avoid network calls.
+Places a market trade using the IG API `/positions/otc` endpoint (version 2).
+If stops/limits fail, falls back to placing the trade without them and adding via PUT.
 }
 \examples{
 \dontrun{
-# Authenticate and execute a trade
-auth <- ig_auth(
-  username = "your_username",
-  password = "your_password",
-  api_key = "your_api_key",
-  acc_type = "DEMO",
-  acc_number = "ABC123"
+auth <- ig_auth(api_key = "your_api_key", username = "your_username", password = "your_password", base_url = "https://demo-api.ig.com")
+res <- ig_execute_trade(
+  epic = "CS.D.USDCHF.MINI.IP",
+  direction = "BUY",
+  size = 1.0,
+  auth = auth,
+  currency_code = "CHF",
+  order_type = "MARKET",
+  time_in_force = "FILL_OR_KILL",
+  limit_distance = 2000,
+  stop_distance = 2000,
+  guaranteed_stop = FALSE,
+  force_open = TRUE
 )
-res <- ig_execute_trade("CS.D.USDCHF.CFD.IP", "BUY", 1.0, auth, limit = 0.855, stop = 0.845)
 print(res)
-
-# Using mock response for testing
-mock_response <- data.frame(
-  dealId = "DIXXXX",
-  dealReference = "REF123",
-  status = "OPEN"
-)
-res <- ig_execute_trade("CS.D.USDCHF.CFD.IP", "BUY", 1.0, auth, mock_response = mock_response)
 }
 
 }

@@ -2,35 +2,42 @@
 % Please edit documentation in R/igfetchr.R
 \name{ig_get_historical}
 \alias{ig_get_historical}
-\title{Get historical prices}
+\title{Get historical prices for a market}
 \usage{
 ig_get_historical(
   epic,
-  from = NULL,
-  to = NULL,
+  from,
+  to,
   resolution = "D",
+  page_size = 20,
   auth,
-  mock_response = NULL
+  mock_response = NULL,
+  wait = 1
 )
 }
 \arguments{
-\item{epic}{Character. Market epic (e.g., "CS.D.USDCHF.CFD.IP").}
+\item{epic}{Character. Market epic (e.g., "CS.D.USDCHF.MINI.IP").}
 
-\item{from}{Character or Date. Start datetime or date (e.g., "2020-01-01"). Optional.}
+\item{from}{Character or Date. Start date (e.g., "2025-09-01" or "2025-09-01 00:00:00"). Required.}
 
-\item{to}{Character or Date. End datetime or date (e.g., "2020-12-31"). Optional.}
+\item{to}{Character or Date. End date (e.g., "2025-09-28" or "2025-09-28 23:59:59"). Required.}
 
-\item{resolution}{Character. Resolution code (e.g., "D" for daily, "H" for hourly). Defaults to "D".}
+\item{resolution}{Character. Resolution code (e.g., "D", "1MIN", "HOUR"). Defaults to "D".}
+
+\item{page_size}{Integer. Number of data points per page (v3 only). Defaults to 20.}
 
 \item{auth}{List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.}
 
 \item{mock_response}{List or data frame. Optional mock response for testing, bypassing the API call.}
+
+\item{wait}{Numeric. Seconds to wait between paginated API calls (v3 only). Defaults to 1.}
 }
 \value{
-A tibble with historical OHLC data, including columns like `snapshotTime`, `openPrice`, `highPrice`, `lowPrice`, `closePrice`, and others as returned by the IG API `/prices/\{epic\}` endpoint.
+A tibble with historical OHLC data, including columns like `snapshotTime`, `openPrice$bid`, `openPrice$ask`, `closePrice$bid`, `closePrice$ask`, `highPrice$bid`, `highPrice$ask`, `lowPrice$bid`, `lowPrice$ask`, `lastTradedVolume`, and nested `$lastTraded` fields.
 }
 \description{
-Fetches historical prices for a market epic between specified dates at a given resolution.
+Fetches historical prices for a market epic between specified dates at a given resolution from the IG API.
+Uses the /prices/{epic}/{resolution}/{startDate}/{endDate} endpoint (version 2) with a fallback to version 3.
 }
 \examples{
 \dontrun{
@@ -42,23 +49,58 @@ auth <- ig_auth(
   acc_type = "DEMO",
   acc_number = "ABC123"
 )
-hist <- ig_get_historical("CS.D.USDCHF.CFD.IP", "2020-01-01", "2020-12-31", "D", auth)
+hist <- ig_get_historical(
+  "CS.D.USDCHF.MINI.IP",
+  from = "2025-09-01",
+  to = "2025-09-28",
+  resolution = "D",
+  page_size = 20,
+  auth
+)
 print(hist)
 
-# Using mock response for testing
-mock_response <- data.frame(
-  snapshotTime = "2020/01/01 00:00:00",
-  openPrice = 0.970,
-  highPrice = 0.975,
-  lowPrice = 0.965,
-  closePrice = 0.971
+# Using time
+hist <- ig_get_historical(
+  "CS.D.USDCHF.MINI.IP",
+  from = "2025-09-01 00:00:00",
+  to = "2025-09-28 23:59:59",
+  resolution = "D",
+  page_size = 20,
+  auth
 )
-hist <- ig_get_historical("CS.D.USDCHF.CFD.IP", 
-  "2020-01-01", 
-  "2020-12-31",
-  "D", 
-  auth, 
-  mock_response = mock_response)
+
+# Using mock response
+mock_response <- list(
+  prices = data.frame(
+    snapshotTime = "2025/09/01 00:00:00",
+    openPrice.bid = 0.970,
+    openPrice.ask = 0.971,
+    openPrice.lastTraded = NA,
+    highPrice.bid = 0.975,
+    highPrice.ask = 0.976,
+    highPrice.lastTraded = NA,
+    lowPrice.bid = 0.965,
+    lowPrice.ask = 0.966,
+    lowPrice.lastTraded = NA,
+    closePrice.bid = 0.971,
+    closePrice.ask = 0.972,
+    closePrice.lastTraded = NA,
+    lastTradedVolume = 50000
+  ),
+  metadata = list(
+    allowance = list(remainingAllowance = 10000),
+    pageData = list(pageNumber = 1, totalPages = 1)
+  )
+)
+hist <- ig_get_historical(
+  "CS.D.USDCHF.MINI.IP",
+  from = "2025-09-01",
+  to = "2025-09-28",
+  resolution = "D",
+  page_size = 20,
+  auth,
+  mock_response = mock_response
+)
 }
 
 }

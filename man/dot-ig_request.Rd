@@ -2,37 +2,36 @@
 % Please edit documentation in R/igfetchr.R
 \name{.ig_request}
 \alias{.ig_request}
-\title{Internal function to make IG API requests}
+\title{Internal function to make HTTP requests to IG API}
 \usage{
 .ig_request(
   path,
   auth,
-  method = c("GET", "POST", "DELETE"),
+  method = c("GET", "POST", "PUT", "DELETE"),
   query = list(),
   body = NULL,
+  version = NULL,
   mock_response = NULL
 )
 }
 \arguments{
-\item{path}{Character. API endpoint path (e.g., "/accounts").}
+\item{path}{Character. API endpoint path (e.g., "/positions/otc").}
 
-\item{auth}{List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.}
+\item{auth}{List. Authentication details from ig_auth().}
 
-\item{method}{Character. HTTP method ("GET", "POST", or "DELETE"). Defaults to "GET".}
+\item{method}{Character. HTTP method ("GET", "POST", "PUT", "DELETE").}
 
-\item{query}{List. Optional query parameters for GET requests.}
+\item{query}{List. Query parameters for GET requests. Defaults to list().}
 
-\item{body}{List. Optional request body for POST requests.}
+\item{body}{List. Request body for POST or PUT requests. Defaults to NULL.}
 
-\item{mock_response}{List or data frame. Optional mock response for testing.}
+\item{version}{Character. API version ("1", "2", "3"). Defaults to NULL.}
+
+\item{mock_response}{List or data frame. Optional mock response for testing, bypassing the API call.}
 }
 \value{
-A tibble containing the API response data, or a tibble with a single column
-containing the raw JSON response if the response cannot be converted to a data frame.
+List with API response or tibble if mock_response is a data frame.
 }
 \description{
-Makes HTTP requests to the IG API using authentication details from `ig_auth()`.
-Handles GET, POST, and DELETE methods and processes JSON responses into tibbles.
-Not intended for direct use; called by higher-level functions like `ig_get_accounts()`.
+Internal function to make HTTP requests to IG API
 }
-\keyword{internal}
