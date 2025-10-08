@@ -249,7 +249,7 @@ ig_search_markets <- function(query, auth, mock_response = NULL) {
 #' Returns instrument details, dealing rules, and snapshot data.
 #'
 #' @param epics Character vector. One or more market epics (e.g., "CS.D.USDCHF.MINI.IP" or c("CS.D.USDCHF.MINI.IP", "CS.D.EURUSD.MINI.IP")).
-#' @param auth List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.
+#' @param auth List. Authentication details from \code{\link{ig_auth}}.
 #' @param detailed Logical. Whether to return detailed info (instrument and dealing rules) or snapshot data only. Defaults to TRUE.
 #' @param mock_response List or data frame. Optional mock response for testing, bypassing the API call.
 #' @param verbose Logical. Whether to print the raw API response for debugging. Defaults to FALSE.
@@ -296,7 +296,10 @@ ig_search_markets <- function(query, auth, mock_response = NULL) {
 #'       instrument = list(
 #'         epic = "CS.D.USDCHF.MINI.IP",
 #'         name = "USD/CHF Mini",
-#'         currencies = list(list(code = "CHF", symbol = "SF", baseExchangeRate = 0.08467604, isDefault = FALSE)),
+#'         currencies = list(list(code = "CHF", 
+#'         symbol = "SF", 
+#'         baseExchangeRate = 0.08467604, 
+#'         isDefault = FALSE)),
 #'         marginDepositBands = list(
 #'           list(min = 0, max = 124, margin = 3.33, currency = "CHF"),
 #'           list(min = 124, max = 310, margin = 3.33, currency = "CHF")
@@ -403,13 +406,14 @@ ig_get_markets_by_epic <- function(epics, auth, detailed = TRUE, mock_response =
 
 #' Get current price for a market
 #'
-#' Fetches current price(s) for the given market epic from the IG API using the `/markets/{epic}` endpoint.
+#' Fetches current price(s) for the given market epic from the IG API using the `/markets/\{epic\}` endpoint.
 #'
 #' @param epic Character. Market epic (e.g., "CS.D.USDCHF.CFD.IP").
 #' @param auth List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.
 #' @param mock_response List or data frame. Optional mock response for testing, bypassing the API call.
 #'
-#' @return A tibble with price information, including columns like `marketStatus`, `bid`, `offer`, `high`, `low`, `updateTime`, and others as returned by the IG API `/markets/{epic}` endpoint.
+#' @return A tibble with price information, including columns like `marketStatus`, 
+#' `bid`, `offer`, `high`, `low`, `updateTime`, and others as returned by the IG API `/markets/\{epic\}` endpoint.
 #'
 #' @examples
 #' \dontrun{
@@ -473,7 +477,7 @@ ig_get_price <- function(epic, auth, mock_response = NULL) {
 #' Get historical prices for a market
 #'
 #' Fetches historical prices for a market epic between specified dates at a given resolution from the IG API.
-#' Uses the /prices/{epic}/{resolution}/{startDate}/{endDate} endpoint (version 2) with a fallback to version 3.
+#' Uses the /prices/\{epic\}/\{resolution\}/\{startDate\}/\{endDate\} endpoint (version 2) with a fallback to version 3.
 #'
 #' @param epic Character. Market epic (e.g., "CS.D.USDCHF.MINI.IP").
 #' @param from Character or Date. Start date (e.g., "2025-09-01" or "2025-09-01 00:00:00"). Required.
@@ -966,13 +970,13 @@ ig_get_options <- function(auth, mock_response = NULL) {
 
 #' Execute a trade (place OTC position)
 #'
-#' Places a market trade using the IG API `/positions/otc` endpoint (version 2).
+#' Places a market trade using the IG API.
 #' If stops/limits fail, falls back to placing the trade without them and adding via PUT.
 #'
 #' @param epic Character. Market epic (e.g., "CS.D.USDCHF.MINI.IP").
 #' @param direction Character. "BUY" or "SELL".
 #' @param size Numeric. Trade size (units).
-#' @param auth List. Authentication details from `ig_auth()`.
+#' @param auth List. Authentication details from \code{\link{ig_auth}}.
 #' @param currency_code Character. Currency code (e.g., "CHF"). Defaults to NULL.
 #' @param expiry Character. Expiry date (e.g., "-"). Defaults to NULL.
 #' @param guaranteed_stop Logical. Use guaranteed stop. Defaults to FALSE.
@@ -991,7 +995,10 @@ ig_get_options <- function(auth, mock_response = NULL) {
 #'
 #' @examples
 #' \dontrun{
-#' auth <- ig_auth(api_key = "your_api_key", username = "your_username", password = "your_password", base_url = "https://demo-api.ig.com")
+#' auth <- ig_auth(api_key = "your_api_key", 
+#' username = "your_username", 
+#' password = "your_password", 
+#' base_url = "https://demo-api.ig.com")
 #' res <- ig_execute_trade(
 #'   epic = "CS.D.USDCHF.MINI.IP",
 #'   direction = "BUY",

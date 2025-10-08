@@ -31,7 +31,7 @@ ig_execute_trade(
 
 \item{size}{Numeric. Trade size (units).}
 
-\item{auth}{List. Authentication details from `ig_auth()`.}
+\item{auth}{List. Authentication details from \code{\link{ig_auth}}.}
 
 \item{currency_code}{Character. Currency code (e.g., "CHF"). Defaults to NULL.}
 
@@ -63,12 +63,15 @@ ig_execute_trade(
 A tibble with trade confirmation details (e.g., `dealId`, `dealReference`).
 }
 \description{
-Places a market trade using the IG API `/positions/otc` endpoint (version 2).
+Places a market trade using the IG API.
 If stops/limits fail, falls back to placing the trade without them and adding via PUT.
 }
 \examples{
 \dontrun{
-auth <- ig_auth(api_key = "your_api_key", username = "your_username", password = "your_password", base_url = "https://demo-api.ig.com")
+auth <- ig_auth(api_key = "your_api_key", 
+username = "your_username", 
+password = "your_password", 
+base_url = "https://demo-api.ig.com")
 res <- ig_execute_trade(
   epic = "CS.D.USDCHF.MINI.IP",
   direction = "BUY",

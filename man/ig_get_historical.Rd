@@ -37,7 +37,7 @@ A tibble with historical OHLC data, including columns like `snapshotTime`, `open
 }
 \description{
 Fetches historical prices for a market epic between specified dates at a given resolution from the IG API.
-Uses the /prices/{epic}/{resolution}/{startDate}/{endDate} endpoint (version 2) with a fallback to version 3.
+Uses the /prices/\{epic\}/\{resolution\}/\{startDate\}/\{endDate\} endpoint (version 2) with a fallback to version 3.
 }
 \examples{
 \dontrun{

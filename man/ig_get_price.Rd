@@ -14,10 +14,11 @@ ig_get_price(epic, auth, mock_response = NULL)
 \item{mock_response}{List or data frame. Optional mock response for testing, bypassing the API call.}
 }
 \value{
-A tibble with price information, including columns like `marketStatus`, `bid`, `offer`, `high`, `low`, `updateTime`, and others as returned by the IG API `/markets/{epic}` endpoint.
+A tibble with price information, including columns like `marketStatus`, 
+`bid`, `offer`, `high`, `low`, `updateTime`, and others as returned by the IG API `/markets/\{epic\}` endpoint.
 }
 \description{
-Fetches current price(s) for the given market epic from the IG API using the `/markets/{epic}` endpoint.
+Fetches current price(s) for the given market epic from the IG API using the `/markets/\{epic\}` endpoint.
 }
 \examples{
 \dontrun{

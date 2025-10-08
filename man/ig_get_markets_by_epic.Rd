@@ -15,7 +15,7 @@ ig_get_markets_by_epic(
 \arguments{
 \item{epics}{Character vector. One or more market epics (e.g., "CS.D.USDCHF.MINI.IP" or c("CS.D.USDCHF.MINI.IP", "CS.D.EURUSD.MINI.IP")).}
 
-\item{auth}{List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.}
+\item{auth}{List. Authentication details from \code{\link{ig_auth}}.}
 
 \item{detailed}{Logical. Whether to return detailed info (instrument and dealing rules) or snapshot data only. Defaults to TRUE.}
 
@@ -70,7 +70,10 @@ mock_response <- list(
       instrument = list(
         epic = "CS.D.USDCHF.MINI.IP",
         name = "USD/CHF Mini",
-        currencies = list(list(code = "CHF", symbol = "SF", baseExchangeRate = 0.08467604, isDefault = FALSE)),
+        currencies = list(list(code = "CHF", 
+        symbol = "SF", 
+        baseExchangeRate = 0.08467604, 
+        isDefault = FALSE)),
         marginDepositBands = list(
           list(min = 0, max = 124, margin = 3.33, currency = "CHF"),
           list(min = 124, max = 310, margin = 3.33, currency = "CHF")
