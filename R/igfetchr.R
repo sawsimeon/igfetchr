@@ -17,10 +17,12 @@
 #' optional account type and number.
 #'
 #' @param username Character. IG account username. Defaults to `IG_SERVICE_USERNAME`.
-#' @param password Character. IG account password. Defaults to `IG_SERVICE_PASSWORD` environment variable.
-#' @param api_key Character. IG API key. Defaults to `IG_SERVICE_API_KEY` environment variable.
-#' @param acc_type Character. Account type, either "DEMO" or "LIVE". Defaults to "DEMO".
-#' @param acc_number Character. Optional account number. Defaults to `IG_SERVICE_ACC_NUMBER` or NULL.
+#' @param password Character. IG account password. Defaults to `IG_SERVICE_PASSWORD`.
+#' @param api_key Character. IG API key. Defaults to `IG_SERVICE_API_KEY`.
+#' @param acc_type Character. Account type, either "DEMO" or "LIVE". 
+#'  Defaults to "DEMO".
+#' @param acc_number Character. Optional account number. 
+#'  Defaults to `IG_SERVICE_ACC_NUMBER` or NULL.
 #'
 #' @return A list containing client session token (cst), security token (X-SECURITY-TOKEN), 
 #' base URL, API key, account type, and account number (or NULL if not provided).
@@ -52,20 +54,25 @@ ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
                     acc_type = Sys.getenv("IG_SERVICE_ACC_TYPE", "DEMO"),
                     acc_number = Sys.getenv("IG_SERVICE_ACC_NUMBER")) {
   # Use environment variables if set and non-empty, otherwise use provided arguments
-  username <- if (nchar(username) > 0) username else stop("`username` must be provided via IG_SERVICE_USERNAME or function argument.")
-  password <- if (nchar(password) > 0) password else stop("`password` must be provided via IG_SERVICE_PASSWORD or function argument.")
-  api_key <- if (nchar(api_key) > 0) api_key else stop("`api_key` must be provided via IG_SERVICE_API_KEY or function argument.")
+  username <- if (nchar(username) > 0) username else stop("`username` must be provided 
+                                                          via IG_SERVICE_USERNAME or function argument.")
+  password <- if (nchar(password) > 0) password else stop("`password` must be provided 
+                                                          via IG_SERVICE_PASSWORD or function argument.")
+  api_key <- if (nchar(api_key) > 0) api_key else stop("`api_key` must be provided 
+                                                       via IG_SERVICE_API_KEY or function argument.")
   acc_type <- if (nchar(acc_type) > 0) acc_type else "DEMO"  # Default to DEMO if not set
   acc_number <- if (nchar(acc_number) > 0) acc_number else NULL  # acc_number is optional
 
   stopifnot(is.character(username), is.character(password), is.character(api_key))
-  if (!is.character(acc_type) || length(acc_type) != 1) stop("`acc_type` must be a single character, e.g. 'DEMO' or 'LIVE'")
+  if (!is.character(acc_type) || length(acc_type) != 1) stop("`acc_type` must be a 
+                                                             single character, e.g. 'DEMO' or 'LIVE'")
   acc_type_upper <- toupper(acc_type)
   base_url <- if (identical(acc_type_upper, "DEMO")) "https://demo-api.ig.com/gateway/deal" else "https://api.ig.com/gateway/deal"
 
   # Support offline/mock mode for tests
   if (identical(Sys.getenv("IGFETCHR_TESTING"), "true")) {
-    return(list(cst = "mock_cst", security = "mock_security", base_url = base_url, api_key = api_key, acc_type = acc_type_upper, acc_number = acc_number))
+    return(list(cst = "mock_cst", security = "mock_security", base_url = base_url, 
+                api_key = api_key, acc_type = acc_type_upper, acc_number = acc_number))
   }
 
   body_list <- list(identifier = username, password = password)
@@ -113,7 +120,8 @@ ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
 #' @param query List. Query parameters for GET requests. Defaults to list().
 #' @param body List. Request body for POST or PUT requests. Defaults to NULL.
 #' @param version Character. API version ("1", "2", "3"). Defaults to NULL.
-#' @param mock_response List or data frame. Optional mock response for testing, bypassing the API call.
+#' @param mock_response List or data frame. 
+#'  Optional mock response for testing, bypassing the API call.
 #'
 #' @return List with API response (status code and body) or tibble if mock_response 
 #'  is a data frame.
@@ -128,7 +136,8 @@ ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
     return(mock_response)
   }
   if (identical(Sys.getenv("IGFETCHR_TESTING"), "true")) {
-    stop("Network calls disabled during tests. Provide `mock_response` or set IGFETCHR_TESTING to '' to enable network.")
+    stop("Network calls disabled during tests. 
+         Provide `mock_response` or set IGFETCHR_TESTING to '' to enable network.")
   }
   if (is.null(auth) || !is.list(auth) || is.null(auth$base_url)) {
     stop("`auth` must be a list returned from ig_auth() with a base_url element.")
@@ -170,7 +179,8 @@ ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
   
   # Verify response
   if (!inherits(resp, "response")) {
-    stop("Invalid response object returned by httr. Check network connection or API availability.")
+    stop("Invalid response object returned by httr. 
+         Check network connection or API availability.")
   }
   
   status <- httr::status_code(resp)
@@ -189,7 +199,8 @@ ig_auth <- function(username = Sys.getenv("IG_SERVICE_USERNAME"),
 #' Search markets by text query. Returns a tibble of matching markets from the IG API.
 #'
 #' @param query Character. Search string for markets (e.g., "USD/CHF").
-#' @param auth List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.
+#' @param auth List. Authentication details from `ig_auth()`, 
+#'  including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.
 #' @param mock_response List or data frame. Optional mock response for testing, bypassing the API call.
 #'
 #' @return A tibble with market information including epic, instrument name and market status.
