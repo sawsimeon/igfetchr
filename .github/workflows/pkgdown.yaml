@@ -1,17 +1,17 @@
+name: Build and Deploy pkgdown Site
+
 on:
   push:
     branches: [main]
-  workflow_dispatch:  # Allows manual trigger
-
-name: pkgdown
+  workflow_dispatch:
 
 jobs:
   pkgdown:
-    runs-on: macos-latest  # macOS for faster R builds
+    runs-on: ubuntu-latest  # Switch to Ubuntu for broader compatibility
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
     permissions:
-      contents: read
+      contents: write  # Needed for gh-pages branch
       pages: write
       id-token: write
     steps:
@@ -21,25 +21,33 @@ jobs:
 
       - uses: r-lib/actions/setup-r@v2
         with:
-          use-public-key: true
+          r-version: 'release'  # Use latest stable R
+          use-public-rspm: true
 
-      - uses: r-lib/actions/r-check@v2
-        with:
-          build-args: 'cflags=-Wall'
-          extra-checks: '"copyrights"'
-          check-args: '--as-cran'
-
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
-          install.packages("remotes")
-          remotes::install_deps(dependencies = TRUE)
-          remotes::install_cran("pkgdown")
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev
 
-      - name: Build site
+      - name: Install R package dependencies
+        run: |
+          install.packages(c("remotes", "pkgdown"))
+          remotes::install_deps(dependencies = TRUE)
+        shell: Rscript {0}
+
+      - name: Run CRAN-like check
+        uses: r-lib/actions/check-r-package@v2
+        with:
+          args: '--as-cran'  # Mimics CRAN checks
+          build_args: '--no-manual'
+
+      - name: Build pkgdown site
         run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
+        shell: Rscript {0}
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./docs
+          force_orphan: true  # Keep gh-pages clean
