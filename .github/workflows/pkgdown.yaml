@@ -34,6 +34,11 @@ jobs:
           install.packages(c("remotes", "pkgdown", "rcmdcheck"))
           remotes::install_deps(dependencies = TRUE)
         shell: Rscript {0}
+        
+      - name: Install igfetchr
+        run: |
+          remotes::install_local()
+        shell: Rscript {0}
 
       - name: Run CRAN-like check
         uses: r-lib/actions/check-r-package@v2
