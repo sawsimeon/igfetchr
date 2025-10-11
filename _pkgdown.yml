@@ -1,6 +1,6 @@
-url: https://sawsimeon.github.io/igfetchr  # Your future site URL
+url: https://sawsimeon.github.io/igfetchr
 template:
-  bootstrap: 5  # Fixes deprecation
+  bootstrap: 5
 home:
   title: igfetchr
   description: A lightweight R wrapper for the IG Trading REST API.
@@ -24,18 +24,29 @@ reference:
       - ig_get_accounts
       - ig_get_options
   - title: Package
+    desc: General package information
     contents:
-      - igfetchr
+      - igfetchr-package
 articles:
   - title: Getting Started
-    contents: getting-started
+    contents:
+      - getting-started
 navbar:
-  structure:
-    left: [home, reference, articles, news]
-    right: [github, search]
-  components:
-    github:
-      icon: fab fa-github
+  left:
+    - text: Home
+      href: index.html
+    - text: Reference
+      href: reference/index.html
+    - text: Articles
+      href: articles/index.html
+    - text: News
+      href: news/index.html
+  right:
+    - text: GitHub
+      icon: fa-github
       href: https://github.com/sawsimeon/igfetchr
-    search:
-      icon: fas fa-magnifying-glass
+      aria-label: Visit the igfetchr GitHub repository
+    - text: Search
+      icon: fa-search
+      aria-label: Search the igfetchr documentation
+      

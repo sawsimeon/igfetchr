@@ -40,7 +40,7 @@ jobs:
         with:
           args: '--as-cran'
           build_args: '--no-manual'
-        continue-on-error: true  # Allow workflow to continue even if check fails
+        continue-on-error: true
 
       - name: Build pkgdown site
         run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
