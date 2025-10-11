@@ -1004,10 +1004,12 @@ ig_get_options <- function(auth, mock_response = NULL) {
 #' 
 #' @examples
 #' \dontrun{
-#' auth <- ig_auth(api_key = "your_api_key", 
-#' username = "your_username", 
-#' password = "your_password", 
-#' base_url = "https://demo-api.ig.com")
+#' auth <- ig_auth(
+#' username = "your_username",
+#' password = "your_password",
+#' api_key = "your_api_key",
+#' acc_type = "DEMO",
+#' acc_number = "ABC123")
 #' res <- ig_execute_trade(
 #'   epic = "CS.D.USDCHF.MINI.IP",
 #'   direction = "BUY",

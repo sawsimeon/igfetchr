@@ -20,6 +20,6 @@ Suggests:
     lubridate,
     httptest
 VignetteBuilder: knitr
-URL: https://github.com/sawsimeon/igfetchr
+URL: https://github.com/sawsimeon/igfetchr, https://sawsimeon.github.io/igfetchr
 BugReports: https://github.com/sawsimeon/igfetchr/issues
 RoxygenNote: 7.3.3

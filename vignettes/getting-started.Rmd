@@ -1,6 +1,8 @@
 ---
 title: "Getting Started with igfetchr"
-output: rmarkdown::html_vignette
+output:
+  rmarkdown::html_vignette:
+    highlight: NULL #Disable Pandoc's highlight-style
 vignette: >
   %\VignetteIndexEntry{Getting Started with igfetchr}
   %\VignetteEngine{knitr::rmarkdown}
