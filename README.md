@@ -80,4 +80,4 @@ Please open issues or pull requests on the GitHub repository: https://github.com
 
 ## License
 
-MIT License — see `LICENSE` file.
+GPL-3 License — see `LICENSE` file.
