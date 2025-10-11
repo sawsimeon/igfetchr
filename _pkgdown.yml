@@ -27,6 +27,10 @@ reference:
     desc: General package information
     contents:
       - igfetchr-package
+  - title: Internal Helpers
+    desc: Low-level helper functions for API requests
+    contents:
+      - .ig_request
 articles:
   - title: Getting Started
     contents:
@@ -49,4 +53,3 @@ navbar:
     - text: Search
       icon: fa-search
       aria-label: Search the igfetchr documentation
-      
