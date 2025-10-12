@@ -7,7 +7,6 @@
 #'
 #' @docType package
 #' @name igfetchr
-#' @keywords internal
 "_PACKAGE"
 
 #' Authenticate with the IG API
