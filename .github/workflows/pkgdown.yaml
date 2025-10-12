@@ -31,7 +31,7 @@ jobs:
 
       - name: Install R package dependencies
         run: |
-          install.packages(c("remotes", "pkgdown", "rcmdcheck"))
+          install.packages(c("remotes", "pkgdown", "rcmdcheck", "usethis"))
           remotes::install_deps(dependencies = TRUE)
         shell: Rscript {0}
         
@@ -48,7 +48,7 @@ jobs:
         continue-on-error: true
 
       - name: Build pkgdown site
-        run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
+        run: pkgdown::build_site_github_pages()
         shell: Rscript {0}
 
       - name: Deploy to GitHub Pages
