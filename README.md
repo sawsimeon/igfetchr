@@ -1,6 +1,8 @@
 # igfetchr
 
-igfetchr is a lightweight R wrapper for the IG Trading REST API (labs.ig.com). It provides beginner-friendly functions to fetch market data, search historical prices, execute trades, and get account details from the IG Trading REST API (labs.ig.com) — returning tidy tibbles for easy analysis.
+igfetchr is a lightweight R wrapper for the [IG Trading REST API] (https://labs.ig.com/). 
+It provides beginner-friendly functions to fetch market data, search historical prices, 
+execute trades, and get account details from the [IG Trading REST API] (https://labs.ig.com/).
 
 Important: Trading CFDs and spread bets carries a high risk of losing money. This package is not financial advice.
 
