@@ -48,7 +48,7 @@ jobs:
         continue-on-error: true
 
       - name: Build pkgdown site
-        run: pkgdown::build_site_github_pages()
+        run: pkgdown::build_site_github_pages(new_process = TRUE)
         shell: Rscript {0}
 
       - name: Deploy to GitHub Pages
