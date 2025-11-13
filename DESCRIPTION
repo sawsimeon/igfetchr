@@ -8,6 +8,9 @@ Description: Provides functions to fetch market data, search historical prices, 
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
+Collate:
+    'utils.R'
+    'igfetchr-package.R'
 Imports:
     httr,
     jsonlite,
