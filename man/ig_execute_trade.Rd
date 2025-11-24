@@ -60,7 +60,7 @@ ig_execute_trade(
 \item{mock_response}{List or data frame. Mock response for testing.}
 }
 \value{
-A tibble with trade confirmation details (e.g., `dealId`, `dealReference`).
+A tibble with trade confirmation details including deal ID and deal reference.
 }
 \description{
 Places a market trade using the IG API.
@@ -68,10 +68,12 @@ If stops/limits fail, falls back to placing the trade without them and adding vi
 }
 \examples{
 \dontrun{
-auth <- ig_auth(api_key = "your_api_key", 
-username = "your_username", 
-password = "your_password", 
-base_url = "https://demo-api.ig.com")
+auth <- ig_auth(
+username = "your_username",
+password = "your_password",
+api_key = "your_api_key",
+acc_type = "DEMO",
+acc_number = "ABC123")
 res <- ig_execute_trade(
   epic = "CS.D.USDCHF.MINI.IP",
   direction = "BUY",

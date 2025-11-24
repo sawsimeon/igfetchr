@@ -10,9 +10,11 @@ ig_close_session(auth, mock_response = NULL)
 ig_logout(auth, mock_response = NULL)
 }
 \arguments{
-\item{auth}{List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.}
+\item{auth}{List. Authentication details from `ig_auth()`, including `cst`, `security`, 
+`base_url`, `api_key`, and `acc_number`.}
 
-\item{mock_response}{Logical. Optional mock response for testing (returns `TRUE` if provided). Defaults to `NULL`.}
+\item{mock_response}{Logical. Optional mock response for testing (returns `TRUE` if 
+provided). Defaults to `NULL`.}
 }
 \value{
 Logical `TRUE` if the session was closed successfully.

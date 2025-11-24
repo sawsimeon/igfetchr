@@ -24,8 +24,8 @@ ig_get_markets_by_epic(
 \item{verbose}{Logical. Whether to print the raw API response for debugging. Defaults to FALSE.}
 }
 \value{
-A list with market details, including nested columns: `instrument` (e.g., epic, currencies, marginDepositBands),
-  `dealingRules` (e.g., minStepDistance, minDealSize), and `snapshot` (e.g., marketStatus, bid, offer, high, low).
+A list with market details including instrument (epic, currencies, marginDepositBands), 
+dealingRules (minStepDistance, minDealSize) and snapshot data (marketStatus, bid, offer, high, low).
 }
 \description{
 Fetches detailed market information for the specified market epic(s) from the IG API using the `/markets` endpoint (version 2).
@@ -61,7 +61,6 @@ print(markets)
 markets <- ig_get_markets_by_epic("CS.D.USDCHF.MINI.IP", auth, verbose = TRUE)
 print(markets)
 # Expected output: Prints raw JSON response, followed by a tibble with 1 row and 3 columns
-}
 
 # Example 5: Use a mock response for testing
 mock_response <- list(
@@ -101,6 +100,6 @@ mock_response <- list(
 )
 markets <- ig_get_markets_by_epic("CS.D.USDCHF.MINI.IP", auth = NULL, mock_response = mock_response)
 print(markets)
-# Expected output: A tibble with 1 row and 3 columns (instrument, dealingRules, snapshot)
+}
 
 }

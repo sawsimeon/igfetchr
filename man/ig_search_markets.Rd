@@ -9,12 +9,13 @@ ig_search_markets(query, auth, mock_response = NULL)
 \arguments{
 \item{query}{Character. Search string for markets (e.g., "USD/CHF").}
 
-\item{auth}{List. Authentication details from `ig_auth()`, including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.}
+\item{auth}{List. Authentication details from `ig_auth()`, 
+including `cst`, `security`, `base_url`, `api_key`, and `acc_number`.}
 
 \item{mock_response}{List or data frame. Optional mock response for testing, bypassing the API call.}
 }
 \value{
-A tibble with market information, including columns like `epic`, `instrumentName`, `marketStatus`, and others as returned by the IG API `/markets` endpoint.
+A tibble with market information including epic, instrument name and market status.
 }
 \description{
 Search markets by text query. Returns a tibble of matching markets from the IG API.
@@ -32,7 +33,7 @@ auth <- ig_auth(
 markets <- ig_search_markets("USD/CHF", auth)
 print(markets)
 
-# Using mock response for testing
+# Using mock response
 mock_response <- data.frame(
   epic = "CS.D.USDCHF.MINI.IP",
   instrumentName = "USD/CHF Mini",

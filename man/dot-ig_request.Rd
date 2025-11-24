@@ -27,11 +27,14 @@
 
 \item{version}{Character. API version ("1", "2", "3"). Defaults to NULL.}
 
-\item{mock_response}{List or data frame. Optional mock response for testing, bypassing the API call.}
+\item{mock_response}{List or data frame. 
+Optional mock response for testing, bypassing the API call.}
 }
 \value{
-List with API response or tibble if mock_response is a data frame.
+List with API response (status code and body) or tibble if mock_response 
+ is a data frame.
 }
 \description{
 Internal function to make HTTP requests to IG API
 }
+\keyword{internal}

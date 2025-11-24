@@ -12,7 +12,7 @@ ig_get_options(auth, mock_response = NULL)
 \item{mock_response}{List or data frame. Optional mock response for testing, bypassing the API call.}
 }
 \value{
-A tibble with options/derivative position details, including columns like `dealId`, `size`, `direction`, `instrumentType`, and others as returned by the IG API `/positions` endpoint. If `instrumentType` is available, filters for "OPTION", "DERIVATIVE", or "OPTION_CONTRACT"; otherwise, returns all positions.
+A tibble with options/derivative position details including deal ID, size, direction and instrument type.
 }
 \description{
 Retrieves positions filtered for options/derivatives from the IG API. Returns a tibble with position details.

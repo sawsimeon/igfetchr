@@ -33,7 +33,8 @@ ig_get_historical(
 \item{wait}{Numeric. Seconds to wait between paginated API calls (v3 only). Defaults to 1.}
 }
 \value{
-A tibble with historical OHLC data, including columns like `snapshotTime`, `openPrice$bid`, `openPrice$ask`, `closePrice$bid`, `closePrice$ask`, `highPrice$bid`, `highPrice$ask`, `lowPrice$bid`, `lowPrice$ask`, `lastTradedVolume`, and nested `$lastTraded` fields.
+A tibble with historical OHLC data including snapshot time, bid, as, open, close, 
+high, low prices and last traded volume.
 }
 \description{
 Fetches historical prices for a market epic between specified dates at a given resolution from the IG API.

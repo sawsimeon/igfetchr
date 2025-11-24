@@ -12,7 +12,7 @@ ig_get_accounts(auth, mock_response = NULL)
 \item{mock_response}{List or data frame. Optional mock response for testing, bypassing the API call.}
 }
 \value{
-A tibble with columns including `accountId`, `accountName`, `balance`, `currency`, and others as returned by the IG API `/accounts` endpoint.
+A tibble with account information including account ID, name, balance and currency.
 }
 \description{
 Fetches details of IG accounts associated with the authenticated session.
