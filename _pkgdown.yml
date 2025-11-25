@@ -26,7 +26,7 @@ reference:
   - title: Package
     desc: General package information
     contents:
-      - igfetchr-package
+      - igfetchr
   - title: Internal Helpers
     desc: Low-level helper functions for API requests
     contents:
