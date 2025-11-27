@@ -1,0 +1,69 @@
+# Authenticate with the IG API
+
+Authenticates with the IG API to obtain session tokens (CST and
+X-SECURITY-TOKEN) for subsequent API requests. Supports environment
+variables for credentials and optional account type and number.
+
+## Usage
+
+``` r
+ig_auth(
+  username = Sys.getenv("IG_SERVICE_USERNAME"),
+  password = Sys.getenv("IG_SERVICE_PASSWORD"),
+  api_key = Sys.getenv("IG_SERVICE_API_KEY"),
+  acc_type = Sys.getenv("IG_SERVICE_ACC_TYPE", "DEMO"),
+  acc_number = Sys.getenv("IG_SERVICE_ACC_NUMBER")
+)
+```
+
+## Arguments
+
+- username:
+
+  Character. IG account username. Defaults to \`IG_SERVICE_USERNAME\`.
+
+- password:
+
+  Character. IG account password. Defaults to \`IG_SERVICE_PASSWORD\`.
+
+- api_key:
+
+  Character. IG API key. Defaults to \`IG_SERVICE_API_KEY\`.
+
+- acc_type:
+
+  Character. Account type, either "DEMO" or "LIVE". Defaults to "DEMO".
+
+- acc_number:
+
+  Character. Optional account number. Defaults to
+  \`IG_SERVICE_ACC_NUMBER\` or NULL.
+
+## Value
+
+A list containing client session token (cst), security token
+(X-SECURITY-TOKEN), base URL, API key, account type, and account number
+(or NULL if not provided).
+
+## Examples
+
+``` r
+if (FALSE) { # \dontrun{
+# Using environment variables
+Sys.setenv(IG_SERVICE_USERNAME = "your_username")
+Sys.setenv(IG_SERVICE_PASSWORD = "your_password")
+Sys.setenv(IG_SERVICE_API_KEY = "your_api_key")
+Sys.setenv(IG_SERVICE_ACC_NUMBER = "ABC123")
+Sys.setenv(IG_SERVICE_ACC_TYPE = "DEMO")
+auth <- ig_auth()
+
+# Using explicit arguments
+auth <- ig_auth(
+  username = "your_username",
+  password = "your_password",
+  api_key = "your_api_key",
+  acc_type = "DEMO",
+  acc_number = "ABC123"
+)
+} # }
+```
