@@ -1,0 +1,9 @@
+pandoc: 3.1.11
+pkgdown: 2.2.0
+pkgdown_sha: ~
+articles:
+  getting-started: getting-started.html
+last_built: 2025-11-29T18:56Z
+urls:
+  reference: https://sawsimeon.github.io/igfetchr/reference
+  article: https://sawsimeon.github.io/igfetchr/articles
