@@ -86,4 +86,4 @@ Please open issues or pull requests on the GitHub repository: <https://github.co
 
 ## License
 
-GPL-3 License — see `LICENSE` file.
+GPL-3 License: <https://cran.r-project.org/web/licenses/GPL-3>
